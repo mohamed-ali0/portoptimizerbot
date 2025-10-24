@@ -178,10 +178,17 @@ def take_screenshot(username, password):
         driver = webdriver.Chrome(options=chrome_options)
         driver.execute_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
         
-        # Maximize window to fullscreen and bring to front
-        print(f"[{datetime.now()}] Setting window to fullscreen...")
+        # Force Chrome window to front IMMEDIATELY
+        print(f"[{datetime.now()}] Forcing Chrome window to front...")
+        time.sleep(1)  # Brief wait for window to appear
+        bring_chrome_to_front()
+        time.sleep(0.5)
         driver.maximize_window()
-        time.sleep(1)
+        time.sleep(0.5)
+        
+        # Force to front again to ensure it's visible
+        bring_chrome_to_front()
+        print(f"[{datetime.now()}] Chrome window should now be visible on top")
         
         # Wait for extension to fully initialize
         print(f"[{datetime.now()}] Waiting for extension to initialize...")
@@ -360,7 +367,14 @@ def take_screenshot(username, password):
             if extension_url:
                 print(f"[{datetime.now()}] Navigating directly to extension page...")
                 driver.get(extension_url)
-                time.sleep(3)  # Wait for page to load
+                time.sleep(2)  # Wait for page to load
+                
+                # Force Chrome window to front after navigation
+                print(f"[{datetime.now()}] Bringing Chrome window to front after navigation...")
+                bring_chrome_to_front()
+                time.sleep(0.5)
+                driver.maximize_window()
+                time.sleep(0.5)
                 
                 print(f"[{datetime.now()}] ✓ Successfully navigated to extension page")
                 print(f"[{datetime.now()}] Current URL: {driver.current_url[:100]}")
