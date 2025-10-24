@@ -12,7 +12,7 @@ def test_win32gui_shortcut():
     print("="*80)
     print("WIN32GUI KEYBOARD SHORTCUT TEST")
     print("="*80)
-    print("This will send Ctrl+Shift+K to Chrome window")
+    print("This will send Alt+M to Chrome window")
     print("Make sure Chrome is open and GoFullPage extension is installed")
     print("="*80)
     print()
@@ -20,7 +20,7 @@ def test_win32gui_shortcut():
     print("⏰ You have 10 seconds to:")
     print("   1. Open Chrome")
     print("   2. Make sure GoFullPage extension is installed")
-    print("   3. Set GoFullPage shortcut to Ctrl+Shift+K")
+    print("   3. Set GoFullPage shortcut to Alt+M")
     print("   4. Minimize RDP window (if using RDP)")
     print("   5. Click on Chrome to focus it")
     print()
@@ -30,7 +30,7 @@ def test_win32gui_shortcut():
         print(f"⏰ Starting in {i} seconds...", end='\r')
         time.sleep(1)
     
-    print("\n🚀 Sending Ctrl+Shift+K to Chrome...")
+    print("\n🚀 Sending Alt+M to Chrome...")
     print("="*80)
     
     try:
@@ -49,27 +49,21 @@ def test_win32gui_shortcut():
             chrome_hwnd = windows[0]
             print(f"[{datetime.now()}] Found Chrome window, sending keyboard shortcut...")
             
-            # Send Ctrl+Shift+K using win32gui
-            # Press and hold Ctrl
-            win32gui.SendMessage(chrome_hwnd, win32con.WM_KEYDOWN, win32con.VK_CONTROL, 0)
+            # Send Alt+M using win32gui
+            # Press and hold Alt
+            win32gui.SendMessage(chrome_hwnd, win32con.WM_KEYDOWN, win32con.VK_MENU, 0)
             time.sleep(0.05)
             
-            # Press and hold Shift
-            win32gui.SendMessage(chrome_hwnd, win32con.WM_KEYDOWN, win32con.VK_SHIFT, 0)
+            # Press M
+            win32gui.SendMessage(chrome_hwnd, win32con.WM_KEYDOWN, ord('M'), 0)
+            time.sleep(0.05)
+            win32gui.SendMessage(chrome_hwnd, win32con.WM_KEYUP, ord('M'), 0)
+            
+            # Release Alt
             time.sleep(0.1)
+            win32gui.SendMessage(chrome_hwnd, win32con.WM_KEYUP, win32con.VK_MENU, 0)
             
-            # Press K
-            win32gui.SendMessage(chrome_hwnd, win32con.WM_KEYDOWN, ord('K'), 0)
-            time.sleep(0.05)
-            win32gui.SendMessage(chrome_hwnd, win32con.WM_KEYUP, ord('K'), 0)
-            
-            # Release modifiers in reverse order
-            time.sleep(0.1)
-            win32gui.SendMessage(chrome_hwnd, win32con.WM_KEYUP, win32con.VK_SHIFT, 0)
-            time.sleep(0.05)
-            win32gui.SendMessage(chrome_hwnd, win32con.WM_KEYUP, win32con.VK_CONTROL, 0)
-            
-            print(f"[{datetime.now()}] ✅ win32gui keyboard shortcut sent (Ctrl+Shift+K)")
+            print(f"[{datetime.now()}] ✅ win32gui keyboard shortcut sent (Alt+M)")
             print(f"[{datetime.now()}] Check if GoFullPage extension triggered...")
             
             # Wait 10 seconds to see if extension works
