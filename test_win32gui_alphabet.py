@@ -33,29 +33,42 @@ def test_win32gui_alphabet():
     print("="*80)
     
     try:
-        # Get the foreground window
-        foreground_hwnd = win32gui.GetForegroundWindow()
-        if foreground_hwnd:
-            window_title = win32gui.GetWindowText(foreground_hwnd)
-            print(f"[{datetime.now()}] Found foreground window: {window_title}")
-            
-            # Write the alphabet A-Z using WM_KEYDOWN/WM_KEYUP (like before)
-            alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-            print(f"[{datetime.now()}] Writing alphabet: {alphabet}")
-            
-            for letter in alphabet:
-                # Send the letter using WM_KEYDOWN/WM_KEYUP (same as before)
-                win32gui.SendMessage(foreground_hwnd, win32con.WM_KEYDOWN, ord(letter), 0)
-                time.sleep(0.05)  # Brief hold
-                win32gui.SendMessage(foreground_hwnd, win32con.WM_KEYUP, ord(letter), 0)
-                time.sleep(0.1)  # Wait 100ms between letters
-                print(f"[{datetime.now()}] Sent letter: {letter}")
-            
-            print(f"[{datetime.now()}] ✅ Alphabet sent successfully!")
-            print(f"[{datetime.now()}] Check your text editor to see if the alphabet appeared")
-            
-        else:
-            print(f"[{datetime.now()}] ❌ No foreground window found")
+        # Find Notepad window (same as working script)
+        def enum_windows_callback(hwnd, windows):
+            if win32gui.IsWindowVisible(hwnd):
+                window_text = win32gui.GetWindowText(hwnd)
+                if "Notepad" in window_text and "Untitled" in window_text:
+                    windows.append(hwnd)
+            return True
+        
+        windows = []
+        win32gui.EnumWindows(enum_windows_callback, windows)
+        
+        if not windows:
+            raise Exception("Notepad window not found. Please open Notepad first.")
+        
+        notepad_hwnd = windows[0]
+        print(f"[{datetime.now()}] Found Notepad window")
+        
+        # Find the Edit control inside Notepad (same as working script)
+        edit_hwnd = win32gui.FindWindowEx(notepad_hwnd, 0, "Edit", None)
+        if not edit_hwnd:
+            raise Exception("Edit control not found in Notepad")
+        
+        print(f"[{datetime.now()}] Found Edit control in Notepad")
+        
+        # Write the alphabet A-Z using WM_CHAR (same as working script)
+        alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+        print(f"[{datetime.now()}] Writing alphabet: {alphabet}")
+        
+        for letter in alphabet:
+            # Send the letter using WM_CHAR (same as working script)
+            win32gui.SendMessage(edit_hwnd, win32con.WM_CHAR, ord(letter), 0)
+            time.sleep(0.01)  # Same timing as working script
+            print(f"[{datetime.now()}] Sent letter: {letter}")
+        
+        print(f"[{datetime.now()}] ✅ Alphabet sent successfully!")
+        print(f"[{datetime.now()}] Check Notepad to see if the alphabet appeared")
             
     except Exception as e:
         print(f"[{datetime.now()}] ❌ Error: {str(e)}")
