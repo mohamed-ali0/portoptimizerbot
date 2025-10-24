@@ -89,28 +89,10 @@ def test_method_1_pynput():
         return False
 
 def test_method_2_pyautogui():
-    """Test 2: pyautogui keyboard"""
-    try:
-        import pyautogui
-        print(f"[{datetime.now()}] Testing Method 2: pyautogui keyboard...")
-        
-        # Clear notepad first
-        clear_notepad()
-        time.sleep(0.5)
-        
-        pyautogui.write("Method 2: pyautogui works!")
-        pyautogui.press('enter')
-        
-        time.sleep(1)
-        text = get_notepad_text()
-        success = "Method 2: pyautogui works!" in text
-        print(f"[{datetime.now()}] Method 2 result: {'SUCCESS' if success else 'FAILED'}")
-        if success:
-            print(f"[{datetime.now()}] Text found: {text[:50]}...")
-        return success
-    except Exception as e:
-        print(f"[{datetime.now()}] Method 2 failed: {str(e)}")
-        return False
+    """Test 2: pyautogui keyboard - SKIPPED (crashes Python)"""
+    print(f"[{datetime.now()}] Testing Method 2: pyautogui keyboard...")
+    print(f"[{datetime.now()}] SKIPPED: pyautogui crashes Python")
+    return False
 
 def test_method_3_win32api():
     """Test 3: win32api SendInput"""
@@ -289,10 +271,9 @@ def main():
     # Test results
     results = {}
     
-    # Test all methods
+    # Test all methods (pyautogui skipped - crashes Python)
     test_methods = [
         ("pynput", test_method_1_pynput),
-        ("pyautogui", test_method_2_pyautogui),
         ("win32api", test_method_3_win32api),
         ("win32gui", test_method_4_win32gui),
         ("win32clipboard", test_method_5_win32clipboard),
