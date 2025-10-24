@@ -50,9 +50,9 @@ def test_win32gui_shortcut():
             print(f"[{datetime.now()}] Found Chrome window, sending keyboard shortcut...")
             
             # Send Alt+M using win32gui
-            # Press and hold Alt
+            # Hold Alt
             win32gui.SendMessage(chrome_hwnd, win32con.WM_KEYDOWN, win32con.VK_MENU, 0)
-            time.sleep(0.05)
+            time.sleep(0.1)
             
             # Press M
             win32gui.SendMessage(chrome_hwnd, win32con.WM_KEYDOWN, ord('M'), 0)
