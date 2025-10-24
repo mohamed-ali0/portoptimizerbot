@@ -336,99 +336,89 @@ def take_screenshot(username, password):
         
         # Use Chrome DevTools Protocol to get ALL tabs/targets (more reliable than window_handles)
         print(f"[{datetime.now()}] Using CDP to detect all Chrome tabs/windows...")
+        extension_url = None
+        
         try:
             targets = driver.execute_cdp_cmd("Target.getTargets", {})
             print(f"[{datetime.now()}] CDP found {len(targets.get('targetInfos', []))} target(s)")
             
             # Look for extension page in targets
-            extension_target = None
             for idx, target in enumerate(targets.get('targetInfos', [])):
                 target_url = target.get('url', '')
                 target_title = target.get('title', '')
                 target_type = target.get('type', '')
-                print(f"[{datetime.now()}] Target {idx + 1}: type={target_type}, title='{target_title[:50]}', url='{target_url[:80]}'")
+                print(f"[{datetime.now()}] Target {idx + 1}: type={target_type}, title='{target_title[:50]}', url='{target_url[:80]}...'")
                 
-                # Check if this is the extension page
-                if 'chrome-extension://' in target_url and target_type == 'page':
-                    extension_target = target
-                    print(f"[{datetime.now()}] ✓ Found extension target!")
-                    
-                    # Attach to this target and switch to it
-                    target_id = target.get('targetId')
-                    if target_id:
-                        try:
-                            # Attach to target
-                            driver.execute_cdp_cmd("Target.attachToTarget", {"targetId": target_id, "flatten": True})
-                            print(f"[{datetime.now()}] Attached to extension target")
-                            
-                            # Switch to the window by iterating all handles
-                            time.sleep(2)
-                            all_windows = driver.window_handles
-                            print(f"[{datetime.now()}] Window handles after CDP: {len(all_windows)}")
-                            
-                            # Try each window to find the extension page
-                            for window_handle in all_windows:
-                                driver.switch_to.window(window_handle)
-                                if 'chrome-extension://' in driver.current_url:
-                                    print(f"[{datetime.now()}] ✓ Successfully switched to extension window via CDP")
-                                    break
-                        except Exception as e:
-                            print(f"[{datetime.now()}] CDP attach/switch failed: {str(e)[:100]}")
+                # Check if this is the extension result page (must be 'page' type and chrome-extension URL)
+                if target_type == 'page' and target_url.startswith('chrome-extension://fdpohaocaechififmbbbbbknoalclacl'):
+                    extension_url = target_url
+                    print(f"[{datetime.now()}] ✓ Found extension result page!")
+                    print(f"[{datetime.now()}] Extension URL: {extension_url}")
                     break
+            
+            # If we found the extension URL, navigate directly to it
+            if extension_url:
+                print(f"[{datetime.now()}] Navigating directly to extension page...")
+                driver.get(extension_url)
+                time.sleep(3)  # Wait for page to load
+                
+                print(f"[{datetime.now()}] ✓ Successfully navigated to extension page")
+                print(f"[{datetime.now()}] Current URL: {driver.current_url[:100]}")
+                print(f"[{datetime.now()}] Current Title: {driver.title[:50]}")
+            else:
+                print(f"[{datetime.now()}] WARNING: Extension page not found in CDP targets")
+                print(f"[{datetime.now()}] Extension may not have opened properly")
+                
         except Exception as e:
             print(f"[{datetime.now()}] CDP detection failed: {str(e)[:100]}")
         
-        # Fallback: Traditional window handle check
-        print(f"[{datetime.now()}] Checking traditional window handles...")
-        all_windows = driver.window_handles
-        print(f"[{datetime.now()}] Detected {len(all_windows)} window(s)")
-        
-        # Check current page details
-        print(f"[{datetime.now()}] Current page details:")
-        print(f"[{datetime.now()}]   URL: {driver.current_url[:100]}")
-        print(f"[{datetime.now()}]   Title: {driver.title[:50]}")
-        
-        # If multiple windows detected, enumerate them
-        if len(all_windows) > 1:
-            print(f"[{datetime.now()}] Found {len(all_windows)} windows, checking each...")
-            extension_window = None
+        # Only check window handles if we didn't find extension via CDP
+        if not extension_url:
+            print(f"[{datetime.now()}] Fallback: Checking traditional window handles...")
+            all_windows = driver.window_handles
+            print(f"[{datetime.now()}] Detected {len(all_windows)} window(s)")
             
-            for idx, window_handle in enumerate(all_windows):
-                driver.switch_to.window(window_handle)
-                current_url = driver.current_url
-                page_title = driver.title
-                print(f"[{datetime.now()}] Window {idx + 1}: '{page_title[:50]}' | '{current_url[:80]}'")
+            # If multiple windows detected, enumerate them
+            if len(all_windows) > 1:
+                print(f"[{datetime.now()}] Found {len(all_windows)} windows, checking each...")
+                extension_window = None
                 
-                # Check if this is the extension page
-                if 'chrome-extension://' in current_url or 'gofullpage' in current_url.lower():
-                    extension_window = window_handle
-                    print(f"[{datetime.now()}] ✓ This is the extension window (by URL)")
-                    break
-                
-                # Check for download button
-                try:
-                    buttons = driver.find_elements(By.CSS_SELECTOR, "a.btn-download, a#btn-download, a[download]")
-                    if buttons:
+                for idx, window_handle in enumerate(all_windows):
+                    driver.switch_to.window(window_handle)
+                    current_url = driver.current_url
+                    page_title = driver.title
+                    print(f"[{datetime.now()}] Window {idx + 1}: '{page_title[:50]}' | '{current_url[:80]}'")
+                    
+                    # Check if this is the extension page
+                    if 'chrome-extension://' in current_url or 'gofullpage' in current_url.lower():
                         extension_window = window_handle
-                        print(f"[{datetime.now()}] ✓ This window has download button")
+                        print(f"[{datetime.now()}] ✓ This is the extension window (by URL)")
                         break
-                except:
-                    pass
-            
-            # Switch to extension window if found
-            if extension_window:
-                driver.switch_to.window(extension_window)
-                print(f"[{datetime.now()}] Switched to extension result page")
+                    
+                    # Check for download button
+                    try:
+                        buttons = driver.find_elements(By.CSS_SELECTOR, "a.btn-download, a#btn-download, a[download]")
+                        if buttons:
+                            extension_window = window_handle
+                            print(f"[{datetime.now()}] ✓ This window has download button")
+                            break
+                    except:
+                        pass
+                
+                # Switch to extension window if found
+                if extension_window:
+                    driver.switch_to.window(extension_window)
+                    print(f"[{datetime.now()}] Switched to extension result page")
+                else:
+                    # Use last window as fallback
+                    driver.switch_to.window(all_windows[-1])
+                    print(f"[{datetime.now()}] Using last window as fallback")
             else:
-                # Use last window as fallback
-                driver.switch_to.window(all_windows[-1])
-                print(f"[{datetime.now()}] Using last window as fallback")
-        else:
-            # Only 1 window detected - the driver might already be on the extension page
-            # This happens when ChromeDriver doesn't properly track window handles
-            print(f"[{datetime.now()}] Only 1 window detected by driver")
-            print(f"[{datetime.now()}] Driver may already be on extension page (ChromeDriver sync issue)")
-            print(f"[{datetime.now()}] Will attempt to find download button on current page...")
+                # Only 1 window detected - the driver might already be on the extension page
+                # This happens when ChromeDriver doesn't properly track window handles
+                print(f"[{datetime.now()}] Only 1 window detected by driver")
+                print(f"[{datetime.now()}] Driver may already be on extension page (ChromeDriver sync issue)")
+                print(f"[{datetime.now()}] Will attempt to find download button on current page...")
         
         # Find and click the download button - try multiple selectors
         print(f"[{datetime.now()}] Looking for download button...")
