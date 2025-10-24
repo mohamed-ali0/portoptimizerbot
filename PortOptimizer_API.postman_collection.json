@@ -1,0 +1,191 @@
+{
+	"info": {
+		"name": "PortOptimizer Screenshot API",
+		"description": "API endpoints for PortOptimizer screenshot automation",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "http://localhost:5000",
+			"type": "string"
+		},
+		{
+			"key": "admin_password",
+			"value": "YB02Ss3JJdk",
+			"type": "string"
+		}
+	],
+	"item": [
+		{
+			"name": "API Info",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{base_url}}/",
+					"host": ["{{base_url}}"],
+					"path": [""]
+				},
+				"description": "Get API information and available endpoints"
+			}
+		},
+		{
+			"name": "System Status",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{base_url}}/status",
+					"host": ["{{base_url}}"],
+					"path": ["status"]
+				},
+				"description": "Get current system status and configuration"
+			}
+		},
+		{
+			"name": "Take Screenshot Now",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"admin_password\": \"{{admin_password}}\"\n}"
+				},
+				"url": {
+					"raw": "{{base_url}}/screenshot/now",
+					"host": ["{{base_url}}"],
+					"path": ["screenshot", "now"]
+				},
+				"description": "Trigger an immediate screenshot (takes ~2 minutes)"
+			}
+		},
+		{
+			"name": "Get Screenshot by Date",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{base_url}}/screenshot/2024-10-23",
+					"host": ["{{base_url}}"],
+					"path": ["screenshot", "2024-10-23"]
+				},
+				"description": "Download screenshot for a specific date (YYYY-MM-DD)"
+			}
+		},
+		{
+			"name": "Get Screenshots Range (Date Range)",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{base_url}}/screenshots/range?start_date=2024-10-20&end_date=2024-10-23",
+					"host": ["{{base_url}}"],
+					"path": ["screenshots", "range"],
+					"query": [
+						{
+							"key": "start_date",
+							"value": "2024-10-20"
+						},
+						{
+							"key": "end_date",
+							"value": "2024-10-23"
+						}
+					]
+				},
+				"description": "Download screenshots between two dates as ZIP"
+			}
+		},
+		{
+			"name": "Get Screenshots Range (Last N)",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{base_url}}/screenshots/range?last_n=5",
+					"host": ["{{base_url}}"],
+					"path": ["screenshots", "range"],
+					"query": [
+						{
+							"key": "last_n",
+							"value": "5"
+						}
+					]
+				},
+				"description": "Download last N screenshots as ZIP"
+			}
+		},
+		{
+			"name": "Change Frequency",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"admin_password\": \"{{admin_password}}\",\n    \"frequency_hours\": 12\n}"
+				},
+				"url": {
+					"raw": "{{base_url}}/admin/frequency",
+					"host": ["{{base_url}}"],
+					"path": ["admin", "frequency"]
+				},
+				"description": "Change screenshot frequency (in hours)"
+			}
+		},
+		{
+			"name": "Update Login Credentials",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"admin_password\": \"{{admin_password}}\",\n    \"username\": \"sara@fouroneone.io\",\n    \"password\": \"Ss925201!\"\n}"
+				},
+				"url": {
+					"raw": "{{base_url}}/admin/credentials",
+					"host": ["{{base_url}}"],
+					"path": ["admin", "credentials"]
+				},
+				"description": "Update portal login credentials"
+			}
+		},
+		{
+			"name": "Cleanup Screenshots",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"admin_password\": \"{{admin_password}}\"\n}"
+				},
+				"url": {
+					"raw": "{{base_url}}/admin/cleanup",
+					"host": ["{{base_url}}"],
+					"path": ["admin", "cleanup"]
+				},
+				"description": "Delete all screenshots (USE WITH CAUTION)"
+			}
+		}
+	]
+}
+
