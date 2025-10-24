@@ -11,6 +11,46 @@ import glob
 from pynput.keyboard import Controller, Key
 import win32gui
 import win32con
+import psutil
+
+
+def kill_chrome_process_tree(driver):
+    """Kill only the Chrome process created by this driver and its children"""
+    try:
+        if not driver or not hasattr(driver, 'service') or not driver.service.process:
+            return 0
+        
+        # Get the ChromeDriver service process
+        chromedriver_pid = driver.service.process.pid
+        
+        # Find all child processes (Chrome instances)
+        killed_count = 0
+        parent = psutil.Process(chromedriver_pid)
+        children = parent.children(recursive=True)
+        
+        # Kill children first (Chrome browser processes)
+        for child in children:
+            try:
+                child.kill()
+                killed_count += 1
+            except (psutil.NoSuchProcess, psutil.AccessDenied):
+                pass
+        
+        # Kill the parent (ChromeDriver)
+        try:
+            parent.kill()
+            killed_count += 1
+        except (psutil.NoSuchProcess, psutil.AccessDenied):
+            pass
+        
+        if killed_count > 0:
+            print(f"[{datetime.now()}] Killed {killed_count} process(es) from this driver")
+            time.sleep(1)  # Wait for processes to fully terminate
+        
+        return killed_count
+    except Exception as e:
+        print(f"[{datetime.now()}] Error killing driver processes: {str(e)}")
+        return 0
 
 
 def bring_chrome_to_front():
@@ -476,10 +516,26 @@ def take_screenshot(username, password):
         # Close the browser
         if driver:
             try:
+                # First try graceful shutdown
                 driver.quit()
-                print(f"[{datetime.now()}] Browser closed")
-            except:
-                pass
+                print(f"[{datetime.now()}] Browser quit() called")
+                time.sleep(1)  # Brief wait for quit() to complete
+                
+                # Force kill to ensure complete cleanup (prevents profile lock)
+                print(f"[{datetime.now()}] Ensuring process cleanup...")
+                killed = kill_chrome_process_tree(driver)
+                if killed > 0:
+                    print(f"[{datetime.now()}] Cleaned up {killed} remaining process(es)")
+                    
+            except Exception as e:
+                print(f"[{datetime.now()}] Error during cleanup: {str(e)}")
+                # Try to kill process tree as last resort
+                try:
+                    kill_chrome_process_tree(driver)
+                except:
+                    pass
+            
+        print(f"[{datetime.now()}] Cleanup complete")
 
 
 if __name__ == "__main__":
