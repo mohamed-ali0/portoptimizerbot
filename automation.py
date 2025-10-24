@@ -294,34 +294,96 @@ def take_screenshot(username, password):
         print(f"[{datetime.now()}] Waiting 30 seconds for extension to capture and open result page...")
         time.sleep(30)
         
-        # Assume extension opened new tab - switch to it
-        print(f"[{datetime.now()}] Switching to extension result tab...")
+        # DEBUG: Check all windows and their details
+        print(f"[{datetime.now()}] Debugging window/tab state...")
         all_windows = driver.window_handles
-        print(f"[{datetime.now()}] Total windows/tabs: {len(all_windows)}")
+        print(f"[{datetime.now()}] Total windows/tabs detected: {len(all_windows)}")
         
-        if len(all_windows) > 1:
-            # Switch to the last tab (extension result page)
-            extension_tab = all_windows[-1]
-            driver.switch_to.window(extension_tab)
-            print(f"[{datetime.now()}] Switched to extension tab")
+        # Try to find the extension result page
+        extension_window = None
+        for idx, window_handle in enumerate(all_windows):
+            driver.switch_to.window(window_handle)
+            current_url = driver.current_url
+            page_title = driver.title
+            print(f"[{datetime.now()}] Window {idx + 1}: Title='{page_title[:50]}...' URL='{current_url[:80]}...'")
+            
+            # Check if this is the extension page (contains the download button or extension URL)
+            if 'chrome-extension://' in current_url or 'gofullpage' in current_url.lower():
+                extension_window = window_handle
+                print(f"[{datetime.now()}] Found extension window {idx + 1} by URL")
+                break
+            
+            # Also check if page contains the download button
+            try:
+                buttons = driver.find_elements(By.CSS_SELECTOR, "a.btn-download, a#btn-download, a[download]")
+                if buttons:
+                    extension_window = window_handle
+                    print(f"[{datetime.now()}] Found extension window {idx + 1} by download button presence")
+                    break
+            except:
+                pass
+        
+        # If we found the extension window, switch to it
+        if extension_window:
+            driver.switch_to.window(extension_window)
+            print(f"[{datetime.now()}] Switched to extension result page")
+            print(f"[{datetime.now()}] Current URL: {driver.current_url}")
         else:
-            # Even if we don't detect multiple tabs, try to continue
-            # (sometimes window handles don't update immediately)
-            print(f"[{datetime.now()}] WARNING: Only 1 tab detected, but continuing anyway...")
-            print(f"[{datetime.now()}] Extension may have opened result in same window or detection failed")
+            # If not found, just use the last window
+            if len(all_windows) > 1:
+                driver.switch_to.window(all_windows[-1])
+                print(f"[{datetime.now()}] Extension page not identified, using last window")
+                print(f"[{datetime.now()}] Current URL: {driver.current_url}")
+            else:
+                print(f"[{datetime.now()}] WARNING: Only 1 window, staying on current page")
         
-        # Find and click the download button
+        # Find and click the download button - try multiple selectors
         print(f"[{datetime.now()}] Looking for download button...")
+        download_button = None
+        download_filename = None
+        
+        # Try multiple selector strategies
+        selectors = [
+            ("CSS: a.btn.btn-download#btn-download", By.CSS_SELECTOR, "a.btn.btn-download#btn-download"),
+            ("CSS: a#btn-download", By.CSS_SELECTOR, "a#btn-download"),
+            ("CSS: a.btn-download", By.CSS_SELECTOR, "a.btn-download"),
+            ("CSS: a[download]", By.CSS_SELECTOR, "a[download]"),
+            ("ID: btn-download", By.ID, "btn-download"),
+            ("XPATH: //a[contains(@class, 'btn-download')]", By.XPATH, "//a[contains(@class, 'btn-download')]"),
+        ]
+        
+        for selector_name, by_method, selector_value in selectors:
+            try:
+                print(f"[{datetime.now()}] Trying {selector_name}...")
+                download_button = WebDriverWait(driver, 5).until(
+                    EC.presence_of_element_located((by_method, selector_value))
+                )
+                if download_button:
+                    download_filename = download_button.get_attribute("download")
+                    print(f"[{datetime.now()}] Found download button with {selector_name}!")
+                    print(f"[{datetime.now()}] Download filename: {download_filename}")
+                    break
+            except Exception as e:
+                print(f"[{datetime.now()}] {selector_name} failed: {str(e)[:50]}")
+        
+        if not download_button:
+            # Last resort - print page source snippet for debugging
+            print(f"[{datetime.now()}] ERROR: Could not find download button with any selector")
+            print(f"[{datetime.now()}] Current page title: {driver.title}")
+            print(f"[{datetime.now()}] Current page URL: {driver.current_url}")
+            try:
+                page_source = driver.page_source
+                print(f"[{datetime.now()}] Page source length: {len(page_source)} characters")
+                if 'btn-download' in page_source:
+                    print(f"[{datetime.now()}] Page DOES contain 'btn-download' in source!")
+                else:
+                    print(f"[{datetime.now()}] Page does NOT contain 'btn-download' in source")
+            except:
+                pass
+            raise Exception("Could not find download button on extension result page")
+        
+        # Click the download button
         try:
-            download_button = WebDriverWait(driver, 10).until(
-                EC.element_to_be_clickable((By.CSS_SELECTOR, "a.btn.btn-download#btn-download"))
-            )
-            
-            # Get the download filename from the button
-            download_filename = download_button.get_attribute("download")
-            print(f"[{datetime.now()}] Found download button, file: {download_filename}")
-            
-            # Click download button
             download_button.click()
             print(f"[{datetime.now()}] Download button clicked")
             
