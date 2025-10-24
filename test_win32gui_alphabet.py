@@ -39,13 +39,15 @@ def test_win32gui_alphabet():
             window_title = win32gui.GetWindowText(foreground_hwnd)
             print(f"[{datetime.now()}] Found foreground window: {window_title}")
             
-            # Write the alphabet A-Z
+            # Write the alphabet A-Z using WM_KEYDOWN/WM_KEYUP (like before)
             alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
             print(f"[{datetime.now()}] Writing alphabet: {alphabet}")
             
             for letter in alphabet:
-                # Send the letter
-                win32gui.SendMessage(foreground_hwnd, win32con.WM_CHAR, ord(letter), 0)
+                # Send the letter using WM_KEYDOWN/WM_KEYUP (same as before)
+                win32gui.SendMessage(foreground_hwnd, win32con.WM_KEYDOWN, ord(letter), 0)
+                time.sleep(0.05)  # Brief hold
+                win32gui.SendMessage(foreground_hwnd, win32con.WM_KEYUP, ord(letter), 0)
                 time.sleep(0.1)  # Wait 100ms between letters
                 print(f"[{datetime.now()}] Sent letter: {letter}")
             
