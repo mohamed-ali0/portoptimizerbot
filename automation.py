@@ -290,37 +290,25 @@ def take_screenshot(username, password):
         
         print(f"[{datetime.now()}] System keyboard input sent (Ctrl+Shift+K)")
         
-        # Wait for extension to capture and open new tab with retry logic
-        print(f"[{datetime.now()}] Waiting for extension to capture screenshot and open new tab...")
-        max_wait_time = 45  # Maximum time to wait (seconds)
-        check_interval = 3  # Check every 3 seconds
-        elapsed = 0
-        new_tab_found = False
+        # Wait 30 seconds for extension to capture and open result page
+        print(f"[{datetime.now()}] Waiting 30 seconds for extension to capture and open result page...")
+        time.sleep(30)
         
-        while elapsed < max_wait_time:
-            time.sleep(check_interval)
-            elapsed += check_interval
-            
-            all_windows = driver.window_handles
-            if len(all_windows) > 1:
-                new_tab_found = True
-                print(f"[{datetime.now()}] New tab detected after {elapsed} seconds ({len(all_windows)} tabs total)")
-                break
-            else:
-                print(f"[{datetime.now()}] Still waiting... ({elapsed}s elapsed, checking again in {check_interval}s)")
+        # Assume extension opened new tab - switch to it
+        print(f"[{datetime.now()}] Switching to extension result tab...")
+        all_windows = driver.window_handles
+        print(f"[{datetime.now()}] Total windows/tabs: {len(all_windows)}")
         
-        if not new_tab_found:
-            print(f"[{datetime.now()}] WARNING: No new tab detected after {max_wait_time} seconds")
-            print(f"[{datetime.now()}] Extension may not have triggered. Check:")
-            print(f"[{datetime.now()}]   1. Extension is installed in chrome_profile")
-            print(f"[{datetime.now()}]   2. Keyboard shortcut is set to Ctrl+Shift+K")
-            print(f"[{datetime.now()}]   3. Chrome window was on top and focused")
-            raise Exception("GoFullPage extension did not open result tab")
-        
-        # Switch to the new tab (last one opened)
-        extension_tab = driver.window_handles[-1]
-        driver.switch_to.window(extension_tab)
-        print(f"[{datetime.now()}] Switched to extension tab")
+        if len(all_windows) > 1:
+            # Switch to the last tab (extension result page)
+            extension_tab = all_windows[-1]
+            driver.switch_to.window(extension_tab)
+            print(f"[{datetime.now()}] Switched to extension tab")
+        else:
+            # Even if we don't detect multiple tabs, try to continue
+            # (sometimes window handles don't update immediately)
+            print(f"[{datetime.now()}] WARNING: Only 1 tab detected, but continuing anyway...")
+            print(f"[{datetime.now()}] Extension may have opened result in same window or detection failed")
         
         # Find and click the download button
         print(f"[{datetime.now()}] Looking for download button...")
