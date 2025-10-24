@@ -52,15 +52,15 @@ def test_win32gui_shortcut():
             # Send Alt+M using win32gui
             # Hold Alt
             win32gui.SendMessage(chrome_hwnd, win32con.WM_KEYDOWN, win32con.VK_MENU, 0)
-            time.sleep(0.1)
+            time.sleep(0.2)  # Hold Alt longer
             
             # Press M
             win32gui.SendMessage(chrome_hwnd, win32con.WM_KEYDOWN, ord('M'), 0)
-            time.sleep(0.05)
+            time.sleep(0.2)  # Hold M longer
             win32gui.SendMessage(chrome_hwnd, win32con.WM_KEYUP, ord('M'), 0)
             
             # Release Alt
-            time.sleep(0.1)
+            time.sleep(0.2)  # Wait longer before releasing Alt
             win32gui.SendMessage(chrome_hwnd, win32con.WM_KEYUP, win32con.VK_MENU, 0)
             
             print(f"[{datetime.now()}] ✅ win32gui keyboard shortcut sent (Alt+M)")
