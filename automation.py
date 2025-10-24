@@ -261,33 +261,34 @@ def take_screenshot(username, password):
         # Verify window is actually visible and on top
         print(f"[{datetime.now()}] Chrome window should now be visible on top")
         
-        # Trigger GoFullPage using keyboard shortcut (Right Alt + Left Shift + P)
-        print(f"[{datetime.now()}] Triggering GoFullPage with keyboard shortcut (Right Alt + Left Shift + P)...")
+        # Trigger GoFullPage using keyboard shortcut (Ctrl + Shift + K)
+        # NOTE: Alt+Shift+P conflicts with browser "New Tab Group" shortcut
+        print(f"[{datetime.now()}] Triggering GoFullPage with keyboard shortcut (Ctrl + Shift + K)...")
         
         # Use pynput to send system-level keyboard events
         # This appears to the OS as real keyboard input
         keyboard = Controller()
         
-        # Press and hold Right Alt (AltGr)
-        keyboard.press(Key.alt_gr)
+        # Press and hold Ctrl
+        keyboard.press(Key.ctrl)
         time.sleep(0.05)
         
-        # Press and hold Left Shift
+        # Press and hold Shift
         keyboard.press(Key.shift)
         time.sleep(0.1)  # Hold both modifiers for 100ms
         
-        # Press P
-        keyboard.press('p')
+        # Press K
+        keyboard.press('k')
         time.sleep(0.05)
-        keyboard.release('p')
+        keyboard.release('k')
         
         # Release modifiers in reverse order
         time.sleep(0.1)
         keyboard.release(Key.shift)
         time.sleep(0.05)
-        keyboard.release(Key.alt_gr)
+        keyboard.release(Key.ctrl)
         
-        print(f"[{datetime.now()}] System keyboard input sent")
+        print(f"[{datetime.now()}] System keyboard input sent (Ctrl+Shift+K)")
         
         print(f"[{datetime.now()}] Waiting 15 seconds for extension to capture screenshot...")
         time.sleep(15)  # Wait for GoFullPage to capture and open new tab

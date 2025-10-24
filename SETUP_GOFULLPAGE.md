@@ -56,7 +56,7 @@ When taking a screenshot:
 1. ✅ Extension loads automatically when Chrome starts
 2. ✅ After login (45 sec wait), page scrolls to top
 3. ✅ **Chrome is FORCED to top and fullscreen TWICE** (before capture) using Windows API
-4. ✅ System-level keyboard shortcut **Right Alt + Left Shift + P** is sent via pynput
+4. ✅ System-level keyboard shortcut **Ctrl + Shift + K** is sent via pynput
 5. ✅ Extension captures full scrollable page (15 sec wait)
 6. ✅ Script finds the new tab opened by extension
 7. ✅ Download button is clicked automatically
@@ -68,13 +68,16 @@ When taking a screenshot:
 
 ## ⌨️ Keyboard Shortcut Setup
 
-**IMPORTANT**: The automation uses **Right Alt + Left Shift + P** for reliability.
+**IMPORTANT**: The automation uses **Ctrl + Shift + K** to avoid conflicts with browser shortcuts.
+
+⚠️ **Why not Alt+Shift+P?** That shortcut conflicts with browser's "New Tab Group" feature.
 
 1. Go to `chrome://extensions/shortcuts`
 2. Find "GoFullPage - Full Page Screen Capture"
-3. Set shortcut to: **Alt+Shift+P** (Chrome will use the right combination automatically)
-4. Make sure it's enabled and not conflicting with other shortcuts
-5. The automation will send: **Right Alt (AltGr) + Left Shift + P**
+3. Click in the shortcut field next to "Capture Entire Page"
+4. Press: **Ctrl+Shift+K** (exactly these keys)
+5. Make sure it shows "Ctrl+Shift+K" in the field
+6. The automation will send: **Ctrl + Shift + K** as system-level keyboard input
 
 ## 📋 Console Output
 
@@ -87,8 +90,8 @@ When taking a screenshot:
 [timestamp] Ensuring Chrome window is on top and fullscreen before capture...
 [timestamp] Chrome window brought to front and maximized
 [timestamp] Chrome window brought to front and maximized  (forced twice)
-[timestamp] Triggering GoFullPage with keyboard shortcut (Right Alt + Left Shift + P)...
-[timestamp] System keyboard input sent
+[timestamp] Triggering GoFullPage with keyboard shortcut (Ctrl + Shift + K)...
+[timestamp] System keyboard input sent (Ctrl+Shift+K)
 [timestamp] Waiting 15 seconds for extension to capture screenshot...
 [timestamp] Looking for extension result tab...
 [timestamp] Found and switched to extension tab (2 tabs total)
@@ -105,7 +108,7 @@ When taking a screenshot:
 
 ## ⚠️ Important Notes
 
-1. **Keyboard Shortcut**: Must set **Alt+Shift+P** in `chrome://extensions/shortcuts` (system will use Right Alt + Left Shift automatically)
+1. **Keyboard Shortcut**: Must set **Ctrl+Shift+K** in `chrome://extensions/shortcuts` (avoids conflicts with browser shortcuts like "New Tab Group")
 
 2. **Dependencies Required**: 
    - `pip install pynput==1.7.6` - for system-level keyboard automation
