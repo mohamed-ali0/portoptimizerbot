@@ -6,8 +6,10 @@ A Flask-based API that automates login to the PortOptimizer portal and takes ful
 
 - 🤖 **Automated Login**: Uses Selenium to automatically log in to the portal
 - 📸 **Scheduled Screenshots**: Takes full-page screenshots at configurable intervals (default: 24 hours)
+- 🔄 **Auto-Retry**: If scheduled screenshot fails, automatically retries after 5 minutes
 - 🔐 **Secure Admin Endpoints**: Protected endpoints for system management
 - 📦 **Bulk Download**: Download multiple screenshots as a ZIP file
+- 🔗 **Public Download Links**: All endpoints return JSON with public download URLs
 - ⚙️ **Configurable Settings**: Change frequency and login credentials on-the-fly
 
 ## Prerequisites
@@ -37,14 +39,30 @@ The API will start on `http://localhost:5000`
 ### 1. Get Screenshot by Date
 **Endpoint**: `GET /screenshot/<date>`
 
-**Description**: Download a screenshot for a specific date.
+**Description**: Get screenshot metadata and download link for a specific date.
 
 **Parameters**:
 - `date` (path): Date in format `YYYY-MM-DD`
 
+**Response**:
+```json
+{
+  "success": true,
+  "date": "2024-10-23",
+  "filename": "2024-10-23_15-30-00.png",
+  "download_url": "http://localhost:5000/download/2024-10-23_15-30-00.png",
+  "message": "Screenshot found for 2024-10-23"
+}
+```
+
 **Example**:
 ```bash
-curl http://localhost:5000/screenshot/2024-10-23 --output screenshot.png
+curl http://localhost:5000/screenshot/2024-10-23
+```
+
+Then download using the URL from response:
+```bash
+curl http://localhost:5000/download/2024-10-23_15-30-00.png --output screenshot.png
 ```
 
 ---
@@ -52,7 +70,7 @@ curl http://localhost:5000/screenshot/2024-10-23 --output screenshot.png
 ### 2. Get Screenshot Range
 **Endpoint**: `GET /screenshots/range`
 
-**Description**: Download multiple screenshots as a ZIP file.
+**Description**: Get download link for ZIP file containing multiple screenshots.
 
 **Query Parameters** (choose one):
 - **Option A**: Date range
@@ -61,18 +79,55 @@ curl http://localhost:5000/screenshot/2024-10-23 --output screenshot.png
 - **Option B**: Last N screenshots
   - `last_n`: Number of most recent screenshots
 
+**Response**:
+```json
+{
+  "success": true,
+  "zip_filename": "screenshots_20241024_153000.zip",
+  "download_url": "http://localhost:5000/download/screenshots_20241024_153000.zip",
+  "screenshot_count": 5,
+  "screenshots": [
+    "2024-10-20_14-30-00.png",
+    "2024-10-21_14-30-00.png",
+    "2024-10-22_14-30-00.png",
+    "2024-10-23_14-30-00.png",
+    "2024-10-24_14-30-00.png"
+  ],
+  "message": "ZIP file created with 5 screenshot(s)"
+}
+```
+
 **Examples**:
 ```bash
 # Get screenshots between two dates
-curl "http://localhost:5000/screenshots/range?start_date=2024-10-20&end_date=2024-10-23" --output screenshots.zip
+curl "http://localhost:5000/screenshots/range?start_date=2024-10-20&end_date=2024-10-23"
 
 # Get last 5 screenshots
-curl "http://localhost:5000/screenshots/range?last_n=5" --output screenshots.zip
+curl "http://localhost:5000/screenshots/range?last_n=5"
+
+# Then download using the URL from response
+curl "http://localhost:5000/download/screenshots_20241024_153000.zip" --output screenshots.zip
 ```
 
 ---
 
-### 3. Change Screenshot Frequency
+### 3. Download File
+**Endpoint**: `GET /download/<filename>`
+
+**Description**: Download a screenshot or ZIP file directly.
+
+**Parameters**:
+- `filename` (path): Filename from previous API responses
+
+**Example**:
+```bash
+curl http://localhost:5000/download/2024-10-23_15-30-00.png --output screenshot.png
+curl http://localhost:5000/download/screenshots_20241024_153000.zip --output screenshots.zip
+```
+
+---
+
+### 4. Change Screenshot Frequency
 **Endpoint**: `POST /admin/frequency`
 
 **Description**: Change how often screenshots are taken.
@@ -94,7 +149,7 @@ curl -X POST http://localhost:5000/admin/frequency \
 
 ---
 
-### 4. Update Login Credentials
+### 5. Update Login Credentials
 **Endpoint**: `POST /admin/credentials`
 
 **Description**: Update the portal login credentials.
@@ -117,7 +172,7 @@ curl -X POST http://localhost:5000/admin/credentials \
 
 ---
 
-### 5. Cleanup Screenshots
+### 6. Cleanup Screenshots
 **Endpoint**: `POST /admin/cleanup`
 
 **Description**: Delete all screenshots from the system.
@@ -138,7 +193,7 @@ curl -X POST http://localhost:5000/admin/cleanup \
 
 ---
 
-### 6. Take Screenshot Now
+### 7. Take Screenshot Now
 **Endpoint**: `POST /screenshot/now`
 
 **Description**: Trigger an immediate screenshot (doesn't affect schedule).
@@ -159,7 +214,7 @@ curl -X POST http://localhost:5000/screenshot/now \
 
 ---
 
-### 7. System Status
+### 8. System Status
 **Endpoint**: `GET /status`
 
 **Description**: Get current system status and configuration.

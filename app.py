@@ -37,8 +37,29 @@ def scheduled_screenshot_task():
                 print(f"[{datetime.now()}] Screenshot taken successfully: {message}")
             else:
                 print(f"[{datetime.now()}] Screenshot failed: {message}")
+                # Schedule retry in 5 minutes
+                print(f"[{datetime.now()}] Scheduling retry in 5 minutes...")
+                scheduler.add_job(
+                    func=scheduled_screenshot_task,
+                    trigger="date",
+                    run_date=datetime.now() + timedelta(minutes=5),
+                    id='screenshot_retry',
+                    replace_existing=True
+                )
         except Exception as e:
             print(f"[{datetime.now()}] Error in scheduled screenshot: {str(e)}")
+            # Schedule retry in 5 minutes on exception
+            print(f"[{datetime.now()}] Scheduling retry in 5 minutes after exception...")
+            try:
+                scheduler.add_job(
+                    func=scheduled_screenshot_task,
+                    trigger="date",
+                    run_date=datetime.now() + timedelta(minutes=5),
+                    id='screenshot_retry',
+                    replace_existing=True
+                )
+            except:
+                pass
 
 
 def restart_scheduler():
@@ -72,11 +93,38 @@ def index():
     })
 
 
+@app.route('/download/<filename>', methods=['GET'])
+def download_file(filename):
+    """
+    Download a specific screenshot file
+    """
+    try:
+        file_path = os.path.join(SCREENSHOTS_DIR, filename)
+        if os.path.exists(file_path):
+            return send_from_directory(
+                SCREENSHOTS_DIR, 
+                filename,
+                as_attachment=True,
+                download_name=filename
+            )
+        else:
+            return jsonify({
+                "success": False,
+                "error": "File not found"
+            }), 404
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
+
+
 @app.route('/screenshot/<date_str>', methods=['GET'])
 def get_screenshot(date_str):
     """
     Get screenshot for a specific date
     Date format: YYYY-MM-DD
+    Returns JSON with download link
     """
     try:
         # Validate date format
@@ -100,12 +148,16 @@ def get_screenshot(date_str):
         matching_files.sort(reverse=True)
         screenshot_file = matching_files[0]
         
-        return send_from_directory(
-            SCREENSHOTS_DIR, 
-            screenshot_file,
-            as_attachment=True,
-            download_name=screenshot_file
-        )
+        # Return JSON with download link
+        download_url = f"{request.host_url}download/{screenshot_file}"
+        
+        return jsonify({
+            "success": True,
+            "date": date_str,
+            "filename": screenshot_file,
+            "download_url": download_url,
+            "message": f"Screenshot found for {date_str}"
+        })
     
     except ValueError:
         return jsonify({
@@ -127,6 +179,7 @@ def get_screenshots_range():
     - start_date: YYYY-MM-DD (required if not using last_n)
     - end_date: YYYY-MM-DD (required if not using last_n)
     - last_n: number of most recent screenshots (optional)
+    Returns JSON with download link for ZIP file
     """
     try:
         last_n = request.args.get('last_n', type=int)
@@ -190,13 +243,17 @@ def get_screenshots_range():
                 file_path = os.path.join(SCREENSHOTS_DIR, filename)
                 zipf.write(file_path, filename)
         
-        # Send zip file and delete it after sending
-        return send_file(
-            zip_path,
-            as_attachment=True,
-            download_name=zip_filename,
-            mimetype='application/zip'
-        )
+        # Return JSON with download link
+        download_url = f"{request.host_url}download/{zip_filename}"
+        
+        return jsonify({
+            "success": True,
+            "zip_filename": zip_filename,
+            "download_url": download_url,
+            "screenshot_count": len(selected_files),
+            "screenshots": selected_files,
+            "message": f"ZIP file created with {len(selected_files)} screenshot(s)"
+        })
     
     except ValueError as e:
         return jsonify({
@@ -479,7 +536,7 @@ if __name__ == '__main__':
     print("=" * 50)
     
     try:
-        app.run(host='0.0.0.0', port=5000, debug=False)
+        app.run(host='0.0.0.0', port=5004, debug=False)
     except (KeyboardInterrupt, SystemExit):
         scheduler.shutdown()
         print("\nShutdown complete")

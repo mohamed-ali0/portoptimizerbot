@@ -1,7 +1,7 @@
 {
 	"info": {
 		"name": "PortOptimizer Screenshot API",
-		"description": "API endpoints for PortOptimizer screenshot automation",
+		"description": "API endpoints for PortOptimizer screenshot automation with public download links",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
 	},
 	"variable": [
@@ -28,10 +28,35 @@
 					"path": [""]
 				},
 				"description": "Get API information and available endpoints"
-			}
+			},
+			"response": []
 		},
 		{
 			"name": "System Status",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status code is 200\", function () {",
+							"    pm.response.to.have.status(200);",
+							"});",
+							"",
+							"pm.test(\"Response has success field\", function () {",
+							"    var jsonData = pm.response.json();",
+							"    pm.expect(jsonData).to.have.property('success');",
+							"    pm.expect(jsonData.success).to.be.true;",
+							"});",
+							"",
+							"pm.test(\"Response has frequency_hours\", function () {",
+							"    var jsonData = pm.response.json();",
+							"    pm.expect(jsonData).to.have.property('frequency_hours');",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
 			"request": {
 				"method": "GET",
 				"header": [],
@@ -41,10 +66,37 @@
 					"path": ["status"]
 				},
 				"description": "Get current system status and configuration"
-			}
+			},
+			"response": []
 		},
 		{
 			"name": "Take Screenshot Now",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status code is 200\", function () {",
+							"    pm.response.to.have.status(200);",
+							"});",
+							"",
+							"pm.test(\"Response has success field\", function () {",
+							"    var jsonData = pm.response.json();",
+							"    pm.expect(jsonData).to.have.property('success');",
+							"});",
+							"",
+							"pm.test(\"Response has filename\", function () {",
+							"    var jsonData = pm.response.json();",
+							"    if (jsonData.success) {",
+							"        pm.expect(jsonData).to.have.property('filename');",
+							"        pm.environment.set(\"last_screenshot\", jsonData.filename);",
+							"    }",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
 			"request": {
 				"method": "POST",
 				"header": [
@@ -62,29 +114,121 @@
 					"host": ["{{base_url}}"],
 					"path": ["screenshot", "now"]
 				},
-				"description": "Trigger an immediate screenshot (takes ~2 minutes)"
-			}
+				"description": "Trigger an immediate screenshot (takes ~2-3 minutes)"
+			},
+			"response": []
 		},
 		{
 			"name": "Get Screenshot by Date",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status code is 200 or 404\", function () {",
+							"    pm.expect([200, 404]).to.include(pm.response.code);",
+							"});",
+							"",
+							"pm.test(\"Response is JSON\", function () {",
+							"    pm.response.to.be.json;",
+							"});",
+							"",
+							"if (pm.response.code === 200) {",
+							"    pm.test(\"Response has download_url\", function () {",
+							"        var jsonData = pm.response.json();",
+							"        pm.expect(jsonData).to.have.property('download_url');",
+							"        pm.expect(jsonData.download_url).to.include('/download/');",
+							"        pm.environment.set(\"download_url\", jsonData.download_url);",
+							"    });",
+							"    ",
+							"    pm.test(\"Response has filename\", function () {",
+							"        var jsonData = pm.response.json();",
+							"        pm.expect(jsonData).to.have.property('filename');",
+							"    });",
+							"}"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
 			"request": {
 				"method": "GET",
 				"header": [],
 				"url": {
-					"raw": "{{base_url}}/screenshot/2024-10-23",
+					"raw": "{{base_url}}/screenshot/{{current_date}}",
 					"host": ["{{base_url}}"],
-					"path": ["screenshot", "2024-10-23"]
+					"path": ["screenshot", "{{current_date}}"]
 				},
-				"description": "Download screenshot for a specific date (YYYY-MM-DD)"
-			}
+				"description": "Get screenshot metadata and download link for a specific date (YYYY-MM-DD)"
+			},
+			"response": []
+		},
+		{
+			"name": "Download File",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status code is 200\", function () {",
+							"    pm.response.to.have.status(200);",
+							"});",
+							"",
+							"pm.test(\"Response is PNG image\", function () {",
+							"    pm.expect(pm.response.headers.get('Content-Type')).to.include('image/png');",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{base_url}}/download/{{last_screenshot}}",
+					"host": ["{{base_url}}"],
+					"path": ["download", "{{last_screenshot}}"]
+				},
+				"description": "Download a specific screenshot file (use filename from previous responses)"
+			},
+			"response": []
 		},
 		{
 			"name": "Get Screenshots Range (Date Range)",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status code is 200 or 404\", function () {",
+							"    pm.expect([200, 404]).to.include(pm.response.code);",
+							"});",
+							"",
+							"if (pm.response.code === 200) {",
+							"    pm.test(\"Response has download_url for ZIP\", function () {",
+							"        var jsonData = pm.response.json();",
+							"        pm.expect(jsonData).to.have.property('download_url');",
+							"        pm.expect(jsonData.download_url).to.include('/download/');",
+							"        pm.expect(jsonData.download_url).to.include('.zip');",
+							"    });",
+							"    ",
+							"    pm.test(\"Response has screenshot_count\", function () {",
+							"        var jsonData = pm.response.json();",
+							"        pm.expect(jsonData).to.have.property('screenshot_count');",
+							"        pm.expect(jsonData.screenshot_count).to.be.a('number');",
+							"    });",
+							"}"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
 			"request": {
 				"method": "GET",
 				"header": [],
 				"url": {
-					"raw": "{{base_url}}/screenshots/range?start_date=2024-10-20&end_date=2024-10-23",
+					"raw": "{{base_url}}/screenshots/range?start_date=2024-10-20&end_date=2024-10-25",
 					"host": ["{{base_url}}"],
 					"path": ["screenshots", "range"],
 					"query": [
@@ -94,15 +238,44 @@
 						},
 						{
 							"key": "end_date",
-							"value": "2024-10-23"
+							"value": "2024-10-25"
 						}
 					]
 				},
-				"description": "Download screenshots between two dates as ZIP"
-			}
+				"description": "Get screenshots between two dates as ZIP with download link"
+			},
+			"response": []
 		},
 		{
 			"name": "Get Screenshots Range (Last N)",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status code is 200 or 404\", function () {",
+							"    pm.expect([200, 404]).to.include(pm.response.code);",
+							"});",
+							"",
+							"if (pm.response.code === 200) {",
+							"    pm.test(\"Response has download_url for ZIP\", function () {",
+							"        var jsonData = pm.response.json();",
+							"        pm.expect(jsonData).to.have.property('download_url');",
+							"        pm.expect(jsonData.zip_filename).to.include('.zip');",
+							"        pm.environment.set(\"zip_download_url\", jsonData.download_url);",
+							"    });",
+							"    ",
+							"    pm.test(\"Response has screenshots array\", function () {",
+							"        var jsonData = pm.response.json();",
+							"        pm.expect(jsonData).to.have.property('screenshots');",
+							"        pm.expect(jsonData.screenshots).to.be.an('array');",
+							"    });",
+							"}"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
 			"request": {
 				"method": "GET",
 				"header": [],
@@ -117,11 +290,36 @@
 						}
 					]
 				},
-				"description": "Download last N screenshots as ZIP"
-			}
+				"description": "Get last N screenshots as ZIP with download link"
+			},
+			"response": []
 		},
 		{
 			"name": "Change Frequency",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status code is 200\", function () {",
+							"    pm.response.to.have.status(200);",
+							"});",
+							"",
+							"pm.test(\"Response has success field\", function () {",
+							"    var jsonData = pm.response.json();",
+							"    pm.expect(jsonData).to.have.property('success');",
+							"    pm.expect(jsonData.success).to.be.true;",
+							"});",
+							"",
+							"pm.test(\"Frequency updated\", function () {",
+							"    var jsonData = pm.response.json();",
+							"    pm.expect(jsonData).to.have.property('frequency_hours');",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
 			"request": {
 				"method": "POST",
 				"header": [
@@ -140,10 +338,30 @@
 					"path": ["admin", "frequency"]
 				},
 				"description": "Change screenshot frequency (in hours)"
-			}
+			},
+			"response": []
 		},
 		{
 			"name": "Update Login Credentials",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status code is 200\", function () {",
+							"    pm.response.to.have.status(200);",
+							"});",
+							"",
+							"pm.test(\"Response has success field\", function () {",
+							"    var jsonData = pm.response.json();",
+							"    pm.expect(jsonData).to.have.property('success');",
+							"    pm.expect(jsonData.success).to.be.true;",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
 			"request": {
 				"method": "POST",
 				"header": [
@@ -162,10 +380,30 @@
 					"path": ["admin", "credentials"]
 				},
 				"description": "Update portal login credentials"
-			}
+			},
+			"response": []
 		},
 		{
 			"name": "Cleanup Screenshots",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status code is 200\", function () {",
+							"    pm.response.to.have.status(200);",
+							"});",
+							"",
+							"pm.test(\"Response has success field\", function () {",
+							"    var jsonData = pm.response.json();",
+							"    pm.expect(jsonData).to.have.property('success');",
+							"    pm.expect(jsonData.success).to.be.true;",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
 			"request": {
 				"method": "POST",
 				"header": [
@@ -184,8 +422,8 @@
 					"path": ["admin", "cleanup"]
 				},
 				"description": "Delete all screenshots (USE WITH CAUTION)"
-			}
+			},
+			"response": []
 		}
 	]
 }
-
