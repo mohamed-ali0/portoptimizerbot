@@ -310,30 +310,46 @@ def take_screenshot(username, password):
         # NOTE: Alt+Shift+P conflicts with browser "New Tab Group" shortcut
         print(f"[{datetime.now()}] Triggering GoFullPage with keyboard shortcut (Ctrl + Shift + K)...")
         
-        # Use pynput to send system-level keyboard events
-        # This appears to the OS as real keyboard input
-        keyboard = Controller()
+        # Use win32gui to send keyboard events directly to Chrome window
+        # This method works even when RDP is minimized
+        # Find Chrome window
+        def enum_windows_callback(hwnd, windows):
+            if win32gui.IsWindowVisible(hwnd):
+                window_text = win32gui.GetWindowText(hwnd)
+                if "Google Chrome" in window_text or "Chrome" in window_text:
+                    windows.append(hwnd)
+            return True
         
-        # Press and hold Ctrl
-        keyboard.press(Key.ctrl)
-        time.sleep(0.05)
+        windows = []
+        win32gui.EnumWindows(enum_windows_callback, windows)
         
-        # Press and hold Shift
-        keyboard.press(Key.shift)
-        time.sleep(0.1)  # Hold both modifiers for 100ms
-        
-        # Press K
-        keyboard.press('k')
-        time.sleep(0.05)
-        keyboard.release('k')
-        
-        # Release modifiers in reverse order
-        time.sleep(0.1)
-        keyboard.release(Key.shift)
-        time.sleep(0.05)
-        keyboard.release(Key.ctrl)
-        
-        print(f"[{datetime.now()}] System keyboard input sent (Ctrl+Shift+K)")
+        if windows:
+            chrome_hwnd = windows[0]
+            print(f"[{datetime.now()}] Found Chrome window, sending keyboard shortcut...")
+            
+            # Send Ctrl+Shift+K using win32gui
+            # Press and hold Ctrl
+            win32gui.SendMessage(chrome_hwnd, win32con.WM_KEYDOWN, win32con.VK_CONTROL, 0)
+            time.sleep(0.05)
+            
+            # Press and hold Shift
+            win32gui.SendMessage(chrome_hwnd, win32con.WM_KEYDOWN, win32con.VK_SHIFT, 0)
+            time.sleep(0.1)
+            
+            # Press K
+            win32gui.SendMessage(chrome_hwnd, win32con.WM_KEYDOWN, ord('K'), 0)
+            time.sleep(0.05)
+            win32gui.SendMessage(chrome_hwnd, win32con.WM_KEYUP, ord('K'), 0)
+            
+            # Release modifiers in reverse order
+            time.sleep(0.1)
+            win32gui.SendMessage(chrome_hwnd, win32con.WM_KEYUP, win32con.VK_SHIFT, 0)
+            time.sleep(0.05)
+            win32gui.SendMessage(chrome_hwnd, win32con.WM_KEYUP, win32con.VK_CONTROL, 0)
+            
+            print(f"[{datetime.now()}] win32gui keyboard shortcut sent (Ctrl+Shift+K)")
+        else:
+            raise Exception("Chrome window not found")
         
         # Wait 30 seconds for extension to capture and open result page
         print(f"[{datetime.now()}] Waiting 30 seconds for extension to capture and open result page...")
