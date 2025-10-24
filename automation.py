@@ -55,56 +55,85 @@ def kill_chrome_process_tree(driver):
 
 def bring_chrome_to_front():
     """Force Chrome window to the front and set to fullscreen using aggressive methods"""
-    def callback(hwnd, windows):
-        if win32gui.IsWindowVisible(hwnd):
-            window_text = win32gui.GetWindowText(hwnd)
-            if "Google Chrome" in window_text or "Chrome" in window_text:
-                windows.append(hwnd)
-        return True
-    
-    windows = []
-    win32gui.EnumWindows(callback, windows)
-    
-    if windows:
-        # Get the first Chrome window
-        hwnd = windows[0]
+    try:
+        def callback(hwnd, windows):
+            if win32gui.IsWindowVisible(hwnd):
+                window_text = win32gui.GetWindowText(hwnd)
+                if "Google Chrome" in window_text or "Chrome" in window_text:
+                    windows.append(hwnd)
+            return True
         
-        # Restore if minimized
-        if win32gui.IsIconic(hwnd):
-            win32gui.ShowWindow(hwnd, win32con.SW_RESTORE)
-            time.sleep(0.2)
+        windows = []
+        win32gui.EnumWindows(callback, windows)
         
-        # Show window normally first
-        win32gui.ShowWindow(hwnd, win32con.SW_SHOW)
-        time.sleep(0.1)
+        if windows:
+            # Get the first Chrome window
+            hwnd = windows[0]
+            
+            # Restore if minimized
+            try:
+                if win32gui.IsIconic(hwnd):
+                    win32gui.ShowWindow(hwnd, win32con.SW_RESTORE)
+                    time.sleep(0.2)
+            except:
+                pass
+            
+            # Show window normally first
+            try:
+                win32gui.ShowWindow(hwnd, win32con.SW_SHOW)
+                time.sleep(0.1)
+            except:
+                pass
+            
+            # Make it topmost temporarily
+            try:
+                win32gui.SetWindowPos(hwnd, win32con.HWND_TOPMOST, 0, 0, 0, 0,
+                                     win32con.SWP_NOMOVE | win32con.SWP_NOSIZE | win32con.SWP_SHOWWINDOW)
+                time.sleep(0.1)
+            except:
+                pass
+            
+            # Bring to front
+            try:
+                win32gui.BringWindowToTop(hwnd)
+                time.sleep(0.1)
+            except:
+                pass
+            
+            # Set as foreground window
+            win32gui.SetForegroundWindow(hwnd)
+            time.sleep(0.1)
+            
+            # Remove topmost flag (so other windows can go on top if needed)
+            try:
+                win32gui.SetWindowPos(hwnd, win32con.HWND_NOTOPMOST, 0, 0, 0, 0,
+                                     win32con.SWP_NOMOVE | win32con.SWP_NOSIZE | win32con.SWP_SHOWWINDOW)
+                time.sleep(0.1)
+            except:
+                pass
+            
+            # Maximize
+            try:
+                win32gui.ShowWindow(hwnd, win32con.SW_MAXIMIZE)
+            except:
+                pass
+            
+            # Final bring to top
+            try:
+                win32gui.BringWindowToTop(hwnd)
+            except:
+                pass
+            
+            print(f"[{datetime.now()}] Chrome window management completed")
+            return True
         
-        # Make it topmost temporarily
-        win32gui.SetWindowPos(hwnd, win32con.HWND_TOPMOST, 0, 0, 0, 0,
-                             win32con.SWP_NOMOVE | win32con.SWP_NOSIZE | win32con.SWP_SHOWWINDOW)
-        time.sleep(0.1)
+        print(f"[{datetime.now()}] No Chrome window found")
+        return False
         
-        # Bring to front
-        win32gui.BringWindowToTop(hwnd)
-        time.sleep(0.1)
-        
-        # Set as foreground window
-        win32gui.SetForegroundWindow(hwnd)
-        time.sleep(0.1)
-        
-        # Remove topmost flag (so other windows can go on top if needed)
-        win32gui.SetWindowPos(hwnd, win32con.HWND_NOTOPMOST, 0, 0, 0, 0,
-                             win32con.SWP_NOMOVE | win32con.SWP_NOSIZE | win32con.SWP_SHOWWINDOW)
-        time.sleep(0.1)
-        
-        # Maximize
-        win32gui.ShowWindow(hwnd, win32con.SW_MAXIMIZE)
-        
-        # Final bring to top
-        win32gui.BringWindowToTop(hwnd)
-        
-        print(f"[{datetime.now()}] Chrome window forcefully brought to front and maximized")
-        return True
-    return False
+    except Exception as e:
+        print(f"[{datetime.now()}] Warning: Error in window management: {str(e)}")
+        print(f"[{datetime.now()}] Continuing anyway - automation should still work")
+        return False
 
 
 def take_screenshot(username, password):
@@ -178,17 +207,12 @@ def take_screenshot(username, password):
         driver = webdriver.Chrome(options=chrome_options)
         driver.execute_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
         
-        # Force Chrome window to front IMMEDIATELY
+        # Force Chrome window to front ONCE at startup
         print(f"[{datetime.now()}] Forcing Chrome window to front...")
         time.sleep(1)  # Brief wait for window to appear
         bring_chrome_to_front()
-        time.sleep(0.5)
         driver.maximize_window()
-        time.sleep(0.5)
-        
-        # Force to front again to ensure it's visible
-        bring_chrome_to_front()
-        print(f"[{datetime.now()}] Chrome window should now be visible on top")
+        print(f"[{datetime.now()}] Chrome window setup complete")
         
         # Wait for extension to fully initialize
         print(f"[{datetime.now()}] Waiting for extension to initialize...")
@@ -282,32 +306,6 @@ def take_screenshot(username, password):
         # Store current window handle
         current_window = driver.current_window_handle
         
-        # CRITICAL: Force Chrome window to front RIGHT BEFORE triggering extension
-        print(f"[{datetime.now()}] Ensuring Chrome window is on top and fullscreen before capture...")
-        
-        # First attempt - aggressive window forcing
-        bring_chrome_to_front()
-        time.sleep(1)  # Give it time to settle
-        
-        # Double-check with Selenium maximize
-        driver.maximize_window()
-        time.sleep(0.5)
-        
-        # Force to front again with more time
-        print(f"[{datetime.now()}] Second window forcing attempt...")
-        bring_chrome_to_front()
-        time.sleep(1)  # Longer wait to ensure it's actually on top
-        
-        # Click on page to ensure focus
-        try:
-            driver.execute_script("document.body.click();")
-        except:
-            pass
-        time.sleep(0.5)
-        
-        # Verify window is actually visible and on top
-        print(f"[{datetime.now()}] Chrome window should now be visible on top")
-        
         # Trigger GoFullPage using keyboard shortcut (Ctrl + Shift + K)
         # NOTE: Alt+Shift+P conflicts with browser "New Tab Group" shortcut
         print(f"[{datetime.now()}] Triggering GoFullPage with keyboard shortcut (Ctrl + Shift + K)...")
@@ -367,14 +365,7 @@ def take_screenshot(username, password):
             if extension_url:
                 print(f"[{datetime.now()}] Navigating directly to extension page...")
                 driver.get(extension_url)
-                time.sleep(2)  # Wait for page to load
-                
-                # Force Chrome window to front after navigation
-                print(f"[{datetime.now()}] Bringing Chrome window to front after navigation...")
-                bring_chrome_to_front()
-                time.sleep(0.5)
-                driver.maximize_window()
-                time.sleep(0.5)
+                time.sleep(3)  # Wait for page to load
                 
                 print(f"[{datetime.now()}] ✓ Successfully navigated to extension page")
                 print(f"[{datetime.now()}] Current URL: {driver.current_url[:100]}")
