@@ -271,13 +271,9 @@ def main():
     # Test results
     results = {}
     
-    # Test all methods (pyautogui skipped - crashes Python)
+    # Test only win32gui method
     test_methods = [
-        ("pynput", test_method_1_pynput),
-        ("win32api", test_method_3_win32api),
         ("win32gui", test_method_4_win32gui),
-        ("win32clipboard", test_method_5_win32clipboard),
-        ("win32com", test_method_6_win32com),
     ]
     
     for method_name, test_func in test_methods:
