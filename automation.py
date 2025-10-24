@@ -294,48 +294,61 @@ def take_screenshot(username, password):
         print(f"[{datetime.now()}] Waiting 30 seconds for extension to capture and open result page...")
         time.sleep(30)
         
-        # DEBUG: Check all windows and their details
-        print(f"[{datetime.now()}] Debugging window/tab state...")
-        all_windows = driver.window_handles
-        print(f"[{datetime.now()}] Total windows/tabs detected: {len(all_windows)}")
-        
-        # Try to find the extension result page
-        extension_window = None
-        for idx, window_handle in enumerate(all_windows):
-            driver.switch_to.window(window_handle)
-            current_url = driver.current_url
-            page_title = driver.title
-            print(f"[{datetime.now()}] Window {idx + 1}: Title='{page_title[:50]}...' URL='{current_url[:80]}...'")
-            
-            # Check if this is the extension page (contains the download button or extension URL)
-            if 'chrome-extension://' in current_url or 'gofullpage' in current_url.lower():
-                extension_window = window_handle
-                print(f"[{datetime.now()}] Found extension window {idx + 1} by URL")
-                break
-            
-            # Also check if page contains the download button
-            try:
-                buttons = driver.find_elements(By.CSS_SELECTOR, "a.btn-download, a#btn-download, a[download]")
-                if buttons:
-                    extension_window = window_handle
-                    print(f"[{datetime.now()}] Found extension window {idx + 1} by download button presence")
-                    break
-            except:
-                pass
-        
-        # If we found the extension window, switch to it
-        if extension_window:
-            driver.switch_to.window(extension_window)
-            print(f"[{datetime.now()}] Switched to extension result page")
-            print(f"[{datetime.now()}] Current URL: {driver.current_url}")
-        else:
-            # If not found, just use the last window
+        # DEBUG: Force refresh of window handles (remote ChromeDriver sometimes lags)
+        print(f"[{datetime.now()}] Refreshing window handles...")
+        for attempt in range(3):
+            all_windows = driver.window_handles
+            print(f"[{datetime.now()}] Attempt {attempt + 1}: Detected {len(all_windows)} window(s)")
             if len(all_windows) > 1:
-                driver.switch_to.window(all_windows[-1])
-                print(f"[{datetime.now()}] Extension page not identified, using last window")
-                print(f"[{datetime.now()}] Current URL: {driver.current_url}")
+                break
+            time.sleep(2)  # Wait and try again
+        
+        # Check current page details
+        print(f"[{datetime.now()}] Current page details:")
+        print(f"[{datetime.now()}]   URL: {driver.current_url[:100]}")
+        print(f"[{datetime.now()}]   Title: {driver.title[:50]}")
+        
+        # If multiple windows detected, enumerate them
+        if len(all_windows) > 1:
+            print(f"[{datetime.now()}] Found {len(all_windows)} windows, checking each...")
+            extension_window = None
+            
+            for idx, window_handle in enumerate(all_windows):
+                driver.switch_to.window(window_handle)
+                current_url = driver.current_url
+                page_title = driver.title
+                print(f"[{datetime.now()}] Window {idx + 1}: '{page_title[:50]}' | '{current_url[:80]}'")
+                
+                # Check if this is the extension page
+                if 'chrome-extension://' in current_url or 'gofullpage' in current_url.lower():
+                    extension_window = window_handle
+                    print(f"[{datetime.now()}] ✓ This is the extension window (by URL)")
+                    break
+                
+                # Check for download button
+                try:
+                    buttons = driver.find_elements(By.CSS_SELECTOR, "a.btn-download, a#btn-download, a[download]")
+                    if buttons:
+                        extension_window = window_handle
+                        print(f"[{datetime.now()}] ✓ This window has download button")
+                        break
+                except:
+                    pass
+            
+            # Switch to extension window if found
+            if extension_window:
+                driver.switch_to.window(extension_window)
+                print(f"[{datetime.now()}] Switched to extension result page")
             else:
-                print(f"[{datetime.now()}] WARNING: Only 1 window, staying on current page")
+                # Use last window as fallback
+                driver.switch_to.window(all_windows[-1])
+                print(f"[{datetime.now()}] Using last window as fallback")
+        else:
+            # Only 1 window detected - the driver might already be on the extension page
+            # This happens when ChromeDriver doesn't properly track window handles
+            print(f"[{datetime.now()}] Only 1 window detected by driver")
+            print(f"[{datetime.now()}] Driver may already be on extension page (ChromeDriver sync issue)")
+            print(f"[{datetime.now()}] Will attempt to find download button on current page...")
         
         # Find and click the download button - try multiple selectors
         print(f"[{datetime.now()}] Looking for download button...")
