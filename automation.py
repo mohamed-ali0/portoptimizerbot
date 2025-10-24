@@ -334,14 +334,54 @@ def take_screenshot(username, password):
         print(f"[{datetime.now()}] Waiting 30 seconds for extension to capture and open result page...")
         time.sleep(30)
         
-        # DEBUG: Force refresh of window handles (remote ChromeDriver sometimes lags)
-        print(f"[{datetime.now()}] Refreshing window handles...")
-        for attempt in range(3):
-            all_windows = driver.window_handles
-            print(f"[{datetime.now()}] Attempt {attempt + 1}: Detected {len(all_windows)} window(s)")
-            if len(all_windows) > 1:
-                break
-            time.sleep(2)  # Wait and try again
+        # Use Chrome DevTools Protocol to get ALL tabs/targets (more reliable than window_handles)
+        print(f"[{datetime.now()}] Using CDP to detect all Chrome tabs/windows...")
+        try:
+            targets = driver.execute_cdp_cmd("Target.getTargets", {})
+            print(f"[{datetime.now()}] CDP found {len(targets.get('targetInfos', []))} target(s)")
+            
+            # Look for extension page in targets
+            extension_target = None
+            for idx, target in enumerate(targets.get('targetInfos', [])):
+                target_url = target.get('url', '')
+                target_title = target.get('title', '')
+                target_type = target.get('type', '')
+                print(f"[{datetime.now()}] Target {idx + 1}: type={target_type}, title='{target_title[:50]}', url='{target_url[:80]}'")
+                
+                # Check if this is the extension page
+                if 'chrome-extension://' in target_url and target_type == 'page':
+                    extension_target = target
+                    print(f"[{datetime.now()}] ✓ Found extension target!")
+                    
+                    # Attach to this target and switch to it
+                    target_id = target.get('targetId')
+                    if target_id:
+                        try:
+                            # Attach to target
+                            driver.execute_cdp_cmd("Target.attachToTarget", {"targetId": target_id, "flatten": True})
+                            print(f"[{datetime.now()}] Attached to extension target")
+                            
+                            # Switch to the window by iterating all handles
+                            time.sleep(2)
+                            all_windows = driver.window_handles
+                            print(f"[{datetime.now()}] Window handles after CDP: {len(all_windows)}")
+                            
+                            # Try each window to find the extension page
+                            for window_handle in all_windows:
+                                driver.switch_to.window(window_handle)
+                                if 'chrome-extension://' in driver.current_url:
+                                    print(f"[{datetime.now()}] ✓ Successfully switched to extension window via CDP")
+                                    break
+                        except Exception as e:
+                            print(f"[{datetime.now()}] CDP attach/switch failed: {str(e)[:100]}")
+                    break
+        except Exception as e:
+            print(f"[{datetime.now()}] CDP detection failed: {str(e)[:100]}")
+        
+        # Fallback: Traditional window handle check
+        print(f"[{datetime.now()}] Checking traditional window handles...")
+        all_windows = driver.window_handles
+        print(f"[{datetime.now()}] Detected {len(all_windows)} window(s)")
         
         # Check current page details
         print(f"[{datetime.now()}] Current page details:")
