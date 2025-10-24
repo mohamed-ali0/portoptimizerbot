@@ -290,21 +290,37 @@ def take_screenshot(username, password):
         
         print(f"[{datetime.now()}] System keyboard input sent (Ctrl+Shift+K)")
         
-        print(f"[{datetime.now()}] Waiting 15 seconds for extension to capture screenshot...")
-        time.sleep(15)  # Wait for GoFullPage to capture and open new tab
+        # Wait for extension to capture and open new tab with retry logic
+        print(f"[{datetime.now()}] Waiting for extension to capture screenshot and open new tab...")
+        max_wait_time = 45  # Maximum time to wait (seconds)
+        check_interval = 3  # Check every 3 seconds
+        elapsed = 0
+        new_tab_found = False
         
-        # Look for the new tab that GoFullPage opened
-        print(f"[{datetime.now()}] Looking for extension result tab...")
-        all_windows = driver.window_handles
+        while elapsed < max_wait_time:
+            time.sleep(check_interval)
+            elapsed += check_interval
+            
+            all_windows = driver.window_handles
+            if len(all_windows) > 1:
+                new_tab_found = True
+                print(f"[{datetime.now()}] New tab detected after {elapsed} seconds ({len(all_windows)} tabs total)")
+                break
+            else:
+                print(f"[{datetime.now()}] Still waiting... ({elapsed}s elapsed, checking again in {check_interval}s)")
         
-        if len(all_windows) > 1:
-            # Switch to the new tab (last one opened)
-            extension_tab = all_windows[-1]
-            driver.switch_to.window(extension_tab)
-            print(f"[{datetime.now()}] Found and switched to extension tab ({len(all_windows)} tabs total)")
-        else:
-            print(f"[{datetime.now()}] WARNING: No new tab detected, extension may not have triggered")
+        if not new_tab_found:
+            print(f"[{datetime.now()}] WARNING: No new tab detected after {max_wait_time} seconds")
+            print(f"[{datetime.now()}] Extension may not have triggered. Check:")
+            print(f"[{datetime.now()}]   1. Extension is installed in chrome_profile")
+            print(f"[{datetime.now()}]   2. Keyboard shortcut is set to Ctrl+Shift+K")
+            print(f"[{datetime.now()}]   3. Chrome window was on top and focused")
             raise Exception("GoFullPage extension did not open result tab")
+        
+        # Switch to the new tab (last one opened)
+        extension_tab = driver.window_handles[-1]
+        driver.switch_to.window(extension_tab)
+        print(f"[{datetime.now()}] Switched to extension tab")
         
         # Find and click the download button
         print(f"[{datetime.now()}] Looking for download button...")
