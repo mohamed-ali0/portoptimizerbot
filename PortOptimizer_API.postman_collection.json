@@ -1,13 +1,13 @@
 {
 	"info": {
-		"name": "PortOptimizer Screenshot API",
-		"description": "API endpoints for PortOptimizer screenshot automation with public download links",
+		"name": "PortOptimizer Excel Download API",
+		"description": "Complete API for PortOptimizer Excel download automation with PDF conversion and UTC timestamps",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
 	},
 	"variable": [
 		{
 			"key": "base_url",
-			"value": "http://localhost:5000",
+			"value": "http://localhost:5004",
 			"type": "string"
 		},
 		{
@@ -18,412 +18,571 @@
 	],
 	"item": [
 		{
-			"name": "API Info",
-			"request": {
-				"method": "GET",
-				"header": [],
-				"url": {
-					"raw": "{{base_url}}/",
-					"host": ["{{base_url}}"],
-					"path": [""]
-				},
-				"description": "Get API information and available endpoints"
-			},
-			"response": []
-		},
-		{
-			"name": "System Status",
-			"event": [
+			"name": "📋 Information",
+			"item": [
 				{
-					"listen": "test",
-					"script": {
-						"exec": [
-							"pm.test(\"Status code is 200\", function () {",
-							"    pm.response.to.have.status(200);",
-							"});",
-							"",
-							"pm.test(\"Response has success field\", function () {",
-							"    var jsonData = pm.response.json();",
-							"    pm.expect(jsonData).to.have.property('success');",
-							"    pm.expect(jsonData.success).to.be.true;",
-							"});",
-							"",
-							"pm.test(\"Response has frequency_hours\", function () {",
-							"    var jsonData = pm.response.json();",
-							"    pm.expect(jsonData).to.have.property('frequency_hours');",
-							"});"
-						],
-						"type": "text/javascript"
-					}
-				}
-			],
-			"request": {
-				"method": "GET",
-				"header": [],
-				"url": {
-					"raw": "{{base_url}}/status",
-					"host": ["{{base_url}}"],
-					"path": ["status"]
-				},
-				"description": "Get current system status and configuration"
-			},
-			"response": []
-		},
-		{
-			"name": "Take Screenshot Now",
-			"event": [
-				{
-					"listen": "test",
-					"script": {
-						"exec": [
-							"pm.test(\"Status code is 200\", function () {",
-							"    pm.response.to.have.status(200);",
-							"});",
-							"",
-							"pm.test(\"Response has success field\", function () {",
-							"    var jsonData = pm.response.json();",
-							"    pm.expect(jsonData).to.have.property('success');",
-							"});",
-							"",
-							"pm.test(\"Response has filename\", function () {",
-							"    var jsonData = pm.response.json();",
-							"    if (jsonData.success) {",
-							"        pm.expect(jsonData).to.have.property('filename');",
-							"        pm.environment.set(\"last_screenshot\", jsonData.filename);",
-							"    }",
-							"});"
-						],
-						"type": "text/javascript"
-					}
-				}
-			],
-			"request": {
-				"method": "POST",
-				"header": [
-					{
-						"key": "Content-Type",
-						"value": "application/json"
-					}
-				],
-				"body": {
-					"mode": "raw",
-					"raw": "{\n    \"admin_password\": \"{{admin_password}}\"\n}"
-				},
-				"url": {
-					"raw": "{{base_url}}/screenshot/now",
-					"host": ["{{base_url}}"],
-					"path": ["screenshot", "now"]
-				},
-				"description": "Trigger an immediate screenshot (takes ~2-3 minutes)"
-			},
-			"response": []
-		},
-		{
-			"name": "Get Screenshot by Date",
-			"event": [
-				{
-					"listen": "test",
-					"script": {
-						"exec": [
-							"pm.test(\"Status code is 200 or 404\", function () {",
-							"    pm.expect([200, 404]).to.include(pm.response.code);",
-							"});",
-							"",
-							"pm.test(\"Response is JSON\", function () {",
-							"    pm.response.to.be.json;",
-							"});",
-							"",
-							"if (pm.response.code === 200) {",
-							"    pm.test(\"Response has download_url\", function () {",
-							"        var jsonData = pm.response.json();",
-							"        pm.expect(jsonData).to.have.property('download_url');",
-							"        pm.expect(jsonData.download_url).to.include('/download/');",
-							"        pm.environment.set(\"download_url\", jsonData.download_url);",
-							"    });",
-							"    ",
-							"    pm.test(\"Response has filename\", function () {",
-							"        var jsonData = pm.response.json();",
-							"        pm.expect(jsonData).to.have.property('filename');",
-							"    });",
-							"}"
-						],
-						"type": "text/javascript"
-					}
-				}
-			],
-			"request": {
-				"method": "GET",
-				"header": [],
-				"url": {
-					"raw": "{{base_url}}/screenshot/{{current_date}}",
-					"host": ["{{base_url}}"],
-					"path": ["screenshot", "{{current_date}}"]
-				},
-				"description": "Get screenshot metadata and download link for a specific date (YYYY-MM-DD)"
-			},
-			"response": []
-		},
-		{
-			"name": "Download File",
-			"event": [
-				{
-					"listen": "test",
-					"script": {
-						"exec": [
-							"pm.test(\"Status code is 200\", function () {",
-							"    pm.response.to.have.status(200);",
-							"});",
-							"",
-							"pm.test(\"Response is PNG image\", function () {",
-							"    pm.expect(pm.response.headers.get('Content-Type')).to.include('image/png');",
-							"});"
-						],
-						"type": "text/javascript"
-					}
-				}
-			],
-			"request": {
-				"method": "GET",
-				"header": [],
-				"url": {
-					"raw": "{{base_url}}/download/{{last_screenshot}}",
-					"host": ["{{base_url}}"],
-					"path": ["download", "{{last_screenshot}}"]
-				},
-				"description": "Download a specific screenshot file (use filename from previous responses)"
-			},
-			"response": []
-		},
-		{
-			"name": "Get Screenshots Range (Date Range)",
-			"event": [
-				{
-					"listen": "test",
-					"script": {
-						"exec": [
-							"pm.test(\"Status code is 200 or 404\", function () {",
-							"    pm.expect([200, 404]).to.include(pm.response.code);",
-							"});",
-							"",
-							"if (pm.response.code === 200) {",
-							"    pm.test(\"Response has download_url for ZIP\", function () {",
-							"        var jsonData = pm.response.json();",
-							"        pm.expect(jsonData).to.have.property('download_url');",
-							"        pm.expect(jsonData.download_url).to.include('/download/');",
-							"        pm.expect(jsonData.download_url).to.include('.zip');",
-							"    });",
-							"    ",
-							"    pm.test(\"Response has screenshot_count\", function () {",
-							"        var jsonData = pm.response.json();",
-							"        pm.expect(jsonData).to.have.property('screenshot_count');",
-							"        pm.expect(jsonData.screenshot_count).to.be.a('number');",
-							"    });",
-							"}"
-						],
-						"type": "text/javascript"
-					}
-				}
-			],
-			"request": {
-				"method": "GET",
-				"header": [],
-				"url": {
-					"raw": "{{base_url}}/screenshots/range?start_date=2024-10-20&end_date=2024-10-25",
-					"host": ["{{base_url}}"],
-					"path": ["screenshots", "range"],
-					"query": [
-						{
-							"key": "start_date",
-							"value": "2024-10-20"
+					"name": "API Info",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/",
+							"host": ["{{base_url}}"],
+							"path": [""]
 						},
+						"description": "Get API information and available endpoints"
+					},
+					"response": []
+				},
+				{
+					"name": "System Status",
+					"event": [
 						{
-							"key": "end_date",
-							"value": "2024-10-25"
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Response has success field\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('success');",
+									"    pm.expect(jsonData.success).to.be.true;",
+									"});",
+									"",
+									"pm.test(\"Response has frequency_hours\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('frequency_hours');",
+									"});",
+									"",
+									"pm.test(\"Response has preferred_hour\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('preferred_hour');",
+									"});",
+									"",
+									"pm.test(\"Response has file counts\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('total_excel_files');",
+									"    pm.expect(jsonData).to.have.property('total_pdf_files');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
 						}
-					]
-				},
-				"description": "Get screenshots between two dates as ZIP with download link"
-			},
-			"response": []
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/status",
+							"host": ["{{base_url}}"],
+							"path": ["status"]
+						},
+						"description": "Get current system status, settings, and file counts"
+					},
+					"response": []
+				}
+			]
 		},
 		{
-			"name": "Get Screenshots Range (Last N)",
-			"event": [
+			"name": "📥 Excel Operations",
+			"item": [
 				{
-					"listen": "test",
-					"script": {
-						"exec": [
-							"pm.test(\"Status code is 200 or 404\", function () {",
-							"    pm.expect([200, 404]).to.include(pm.response.code);",
-							"});",
-							"",
-							"if (pm.response.code === 200) {",
-							"    pm.test(\"Response has download_url for ZIP\", function () {",
-							"        var jsonData = pm.response.json();",
-							"        pm.expect(jsonData).to.have.property('download_url');",
-							"        pm.expect(jsonData.zip_filename).to.include('.zip');",
-							"        pm.environment.set(\"zip_download_url\", jsonData.download_url);",
-							"    });",
-							"    ",
-							"    pm.test(\"Response has screenshots array\", function () {",
-							"        var jsonData = pm.response.json();",
-							"        pm.expect(jsonData).to.have.property('screenshots');",
-							"        pm.expect(jsonData.screenshots).to.be.an('array');",
-							"    });",
-							"}"
-						],
-						"type": "text/javascript"
-					}
-				}
-			],
-			"request": {
-				"method": "GET",
-				"header": [],
-				"url": {
-					"raw": "{{base_url}}/screenshots/range?last_n=5",
-					"host": ["{{base_url}}"],
-					"path": ["screenshots", "range"],
-					"query": [
+					"name": "Download Excel Now",
+					"event": [
 						{
-							"key": "last_n",
-							"value": "5"
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Response has success field\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('success');",
+									"});",
+									"",
+									"pm.test(\"Response has download URLs\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    if (jsonData.success) {",
+									"        pm.expect(jsonData).to.have.property('download_url');",
+									"        pm.environment.set(\"excel_download_url\", jsonData.download_url);",
+									"        if (jsonData.pdf_filename) {",
+									"            pm.environment.set(\"pdf_download_url\", jsonData.download_url.replace(jsonData.excel_filename, jsonData.pdf_filename));",
+									"        }",
+									"    }",
+									"});"
+								],
+								"type": "text/javascript"
+							}
 						}
-					]
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"admin_password\": \"{{admin_password}}\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/excel/now",
+							"host": ["{{base_url}}"],
+							"path": ["excel", "now"]
+						},
+						"description": "Download Excel report immediately and convert to PDF (takes ~2-3 minutes)"
+					},
+					"response": []
 				},
-				"description": "Get last N screenshots as ZIP with download link"
-			},
-			"response": []
+				{
+					"name": "Get Excel by Date",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200 or 404\", function () {",
+									"    pm.expect([200, 404]).to.include(pm.response.code);",
+									"});",
+									"",
+									"pm.test(\"Response is JSON\", function () {",
+									"    pm.response.to.be.json;",
+									"});",
+									"",
+									"if (pm.response.code === 200) {",
+									"    pm.test(\"Response has required fields\", function () {",
+									"        var jsonData = pm.response.json();",
+									"        pm.expect(jsonData).to.have.property('success');",
+									"        pm.expect(jsonData).to.have.property('date');",
+									"        pm.expect(jsonData).to.have.property('filename');",
+									"        pm.expect(jsonData).to.have.property('download_url');",
+									"        pm.expect(jsonData).to.have.property('message');",
+									"        pm.environment.set(\"excel_download_url\", jsonData.download_url);",
+									"    });",
+									"    ",
+									"    pm.test(\"Download URL is public\", function () {",
+									"        var jsonData = pm.response.json();",
+									"        pm.expect(jsonData.download_url).to.include('/download/');",
+									"    });",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/excel/{{current_date}}",
+							"host": ["{{base_url}}"],
+							"path": ["excel", "{{current_date}}"]
+						},
+						"description": "Get Excel report by date (YYYY-MM-DD format) with public download URL"
+					},
+					"response": []
+				}
+			]
 		},
 		{
-			"name": "Change Frequency",
-			"event": [
+			"name": "📄 PDF Operations",
+			"item": [
 				{
-					"listen": "test",
-					"script": {
-						"exec": [
-							"pm.test(\"Status code is 200\", function () {",
-							"    pm.response.to.have.status(200);",
-							"});",
-							"",
-							"pm.test(\"Response has success field\", function () {",
-							"    var jsonData = pm.response.json();",
-							"    pm.expect(jsonData).to.have.property('success');",
-							"    pm.expect(jsonData.success).to.be.true;",
-							"});",
-							"",
-							"pm.test(\"Frequency updated\", function () {",
-							"    var jsonData = pm.response.json();",
-							"    pm.expect(jsonData).to.have.property('frequency_hours');",
-							"});"
-						],
-						"type": "text/javascript"
-					}
+					"name": "Get PDF by Date",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200 or 404\", function () {",
+									"    pm.expect([200, 404]).to.include(pm.response.code);",
+									"});",
+									"",
+									"pm.test(\"Response is JSON\", function () {",
+									"    pm.response.to.be.json;",
+									"});",
+									"",
+									"if (pm.response.code === 200) {",
+									"    pm.test(\"Response has required fields\", function () {",
+									"        var jsonData = pm.response.json();",
+									"        pm.expect(jsonData).to.have.property('success');",
+									"        pm.expect(jsonData).to.have.property('date');",
+									"        pm.expect(jsonData).to.have.property('filename');",
+									"        pm.expect(jsonData).to.have.property('download_url');",
+									"        pm.expect(jsonData).to.have.property('message');",
+									"        pm.environment.set(\"pdf_download_url\", jsonData.download_url);",
+									"    });",
+									"    ",
+									"    pm.test(\"Download URL is public\", function () {",
+									"        var jsonData = pm.response.json();",
+									"        pm.expect(jsonData.download_url).to.include('/download/');",
+									"    });",
+									"    ",
+									"    pm.test(\"Filename is PDF\", function () {",
+									"        var jsonData = pm.response.json();",
+									"        pm.expect(jsonData.filename).to.include('.pdf');",
+									"    });",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/pdf/{{current_date}}",
+							"host": ["{{base_url}}"],
+							"path": ["pdf", "{{current_date}}"]
+						},
+						"description": "Get PDF report by date (YYYY-MM-DD format) with public download URL"
+					},
+					"response": []
 				}
-			],
-			"request": {
-				"method": "POST",
-				"header": [
-					{
-						"key": "Content-Type",
-						"value": "application/json"
-					}
-				],
-				"body": {
-					"mode": "raw",
-					"raw": "{\n    \"admin_password\": \"{{admin_password}}\",\n    \"frequency_hours\": 12\n}"
-				},
-				"url": {
-					"raw": "{{base_url}}/admin/frequency",
-					"host": ["{{base_url}}"],
-					"path": ["admin", "frequency"]
-				},
-				"description": "Change screenshot frequency (in hours)"
-			},
-			"response": []
+			]
 		},
 		{
-			"name": "Update Login Credentials",
-			"event": [
+			"name": "📁 File Downloads",
+			"item": [
 				{
-					"listen": "test",
-					"script": {
-						"exec": [
-							"pm.test(\"Status code is 200\", function () {",
-							"    pm.response.to.have.status(200);",
-							"});",
-							"",
-							"pm.test(\"Response has success field\", function () {",
-							"    var jsonData = pm.response.json();",
-							"    pm.expect(jsonData).to.have.property('success');",
-							"    pm.expect(jsonData.success).to.be.true;",
-							"});"
-						],
-						"type": "text/javascript"
-					}
+					"name": "Download Excel File",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200 or 404\", function () {",
+									"    pm.expect([200, 404]).to.include(pm.response.code);",
+									"});",
+									"",
+									"if (pm.response.code === 200) {",
+									"    pm.test(\"Response is Excel file\", function () {",
+									"        pm.expect(pm.response.headers.get('Content-Type')).to.include('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');",
+									"    });",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/download/{{excel_filename}}",
+							"host": ["{{base_url}}"],
+							"path": ["download", "{{excel_filename}}"]
+						},
+						"description": "Download specific Excel file (use filename from previous responses)"
+					},
+					"response": []
+				},
+				{
+					"name": "Download PDF File",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200 or 404\", function () {",
+									"    pm.expect([200, 404]).to.include(pm.response.code);",
+									"});",
+									"",
+									"if (pm.response.code === 200) {",
+									"    pm.test(\"Response is PDF file\", function () {",
+									"        pm.expect(pm.response.headers.get('Content-Type')).to.include('application/pdf');",
+									"    });",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/download/{{pdf_filename}}",
+							"host": ["{{base_url}}"],
+							"path": ["download", "{{pdf_filename}}"]
+						},
+						"description": "Download specific PDF file (use filename from previous responses)"
+					},
+					"response": []
 				}
-			],
-			"request": {
-				"method": "POST",
-				"header": [
-					{
-						"key": "Content-Type",
-						"value": "application/json"
-					}
-				],
-				"body": {
-					"mode": "raw",
-					"raw": "{\n    \"admin_password\": \"{{admin_password}}\",\n    \"username\": \"sara@fouroneone.io\",\n    \"password\": \"Ss925201!\"\n}"
-				},
-				"url": {
-					"raw": "{{base_url}}/admin/credentials",
-					"host": ["{{base_url}}"],
-					"path": ["admin", "credentials"]
-				},
-				"description": "Update portal login credentials"
-			},
-			"response": []
+			]
 		},
 		{
-			"name": "Cleanup Screenshots",
-			"event": [
+			"name": "⚙️ Admin Functions",
+			"item": [
 				{
-					"listen": "test",
-					"script": {
-						"exec": [
-							"pm.test(\"Status code is 200\", function () {",
-							"    pm.response.to.have.status(200);",
-							"});",
-							"",
-							"pm.test(\"Response has success field\", function () {",
-							"    var jsonData = pm.response.json();",
-							"    pm.expect(jsonData).to.have.property('success');",
-							"    pm.expect(jsonData.success).to.be.true;",
-							"});"
+					"name": "Change Frequency",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Response has success field\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('success');",
+									"    pm.expect(jsonData.success).to.be.true;",
+									"});",
+									"",
+									"pm.test(\"Frequency updated\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('frequency_hours');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
 						],
-						"type": "text/javascript"
-					}
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"admin_password\": \"{{admin_password}}\",\n    \"frequency_hours\": 24\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/admin/frequency",
+							"host": ["{{base_url}}"],
+							"path": ["admin", "frequency"]
+						},
+						"description": "Change download frequency (in hours)"
+					},
+					"response": []
+				},
+				{
+					"name": "Set Preferred Hour",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Response has success field\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('success');",
+									"    pm.expect(jsonData.success).to.be.true;",
+									"});",
+									"",
+									"pm.test(\"Preferred hour updated\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('preferred_hour');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"admin_password\": \"{{admin_password}}\",\n    \"preferred_hour\": 10\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/admin/preferred_hour",
+							"host": ["{{base_url}}"],
+							"path": ["admin", "preferred_hour"]
+						},
+						"description": "Set preferred hour for scheduled captures (0-23, 24-hour format)"
+					},
+					"response": []
+				},
+				{
+					"name": "Update Credentials",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Response has success field\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('success');",
+									"    pm.expect(jsonData.success).to.be.true;",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"admin_password\": \"{{admin_password}}\",\n    \"username\": \"sara@fouroneone.io\",\n    \"password\": \"Ss925201!\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/admin/credentials",
+							"host": ["{{base_url}}"],
+							"path": ["admin", "credentials"]
+						},
+						"description": "Update portal login credentials"
+					},
+					"response": []
+				},
+				{
+					"name": "Cleanup Files",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Response has success field\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('success');",
+									"    pm.expect(jsonData.success).to.be.true;",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"admin_password\": \"{{admin_password}}\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/admin/cleanup",
+							"host": ["{{base_url}}"],
+							"path": ["admin", "cleanup"]
+						},
+						"description": "Delete all files (USE WITH CAUTION)"
+					},
+					"response": []
 				}
-			],
-			"request": {
-				"method": "POST",
-				"header": [
-					{
-						"key": "Content-Type",
-						"value": "application/json"
-					}
-				],
-				"body": {
-					"mode": "raw",
-					"raw": "{\n    \"admin_password\": \"{{admin_password}}\"\n}"
+			]
+		},
+		{
+			"name": "❌ Error Testing",
+			"item": [
+				{
+					"name": "Invalid Admin Password",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 403\", function () {",
+									"    pm.response.to.have.status(403);",
+									"});",
+									"",
+									"pm.test(\"Response has error field\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('success');",
+									"    pm.expect(jsonData.success).to.be.false;",
+									"    pm.expect(jsonData).to.have.property('error');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"admin_password\": \"wrong_password\",\n    \"frequency_hours\": 12\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/admin/frequency",
+							"host": ["{{base_url}}"],
+							"path": ["admin", "frequency"]
+						},
+						"description": "Test invalid admin password (should return 403)"
+					},
+					"response": []
 				},
-				"url": {
-					"raw": "{{base_url}}/admin/cleanup",
-					"host": ["{{base_url}}"],
-					"path": ["admin", "cleanup"]
-				},
-				"description": "Delete all screenshots (USE WITH CAUTION)"
-			},
-			"response": []
+				{
+					"name": "Invalid Date Format",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 400\", function () {",
+									"    pm.response.to.have.status(400);",
+									"});",
+									"",
+									"pm.test(\"Response has error field\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('success');",
+									"    pm.expect(jsonData.success).to.be.false;",
+									"    pm.expect(jsonData).to.have.property('error');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/excel/invalid-date",
+							"host": ["{{base_url}}"],
+							"path": ["excel", "invalid-date"]
+						},
+						"description": "Test invalid date format (should return 400)"
+					},
+					"response": []
+				}
+			]
 		}
 	]
 }

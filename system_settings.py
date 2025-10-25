@@ -9,6 +9,7 @@ class SystemSettings:
     
     DEFAULT_SETTINGS = {
         "frequency_hours": 24,  # Default: once a day
+        "preferred_hour": 10,   # Default: 10 AM Central USA
         "admin_password": "YB02Ss3JJdk",
         "login_credentials": {
             "username": "sara@fouroneone.io",
@@ -70,6 +71,19 @@ class SystemSettings:
         }
         return self._save_settings(settings)
     
+    def get_preferred_hour(self):
+        """Get preferred hour for scheduled captures (0-23)"""
+        settings = self._load_settings()
+        return settings.get("preferred_hour", self.DEFAULT_SETTINGS["preferred_hour"])
+    
+    def set_preferred_hour(self, hour):
+        """Set preferred hour for scheduled captures (0-23)"""
+        if not isinstance(hour, int) or hour < 0 or hour > 23:
+            raise ValueError("Hour must be an integer between 0 and 23")
+        settings = self._load_settings()
+        settings["preferred_hour"] = hour
+        return self._save_settings(settings)
+    
     def get_all_settings(self, include_passwords=False):
         """Get all settings (optionally hide passwords)"""
         settings = self._load_settings()
@@ -87,4 +101,5 @@ if __name__ == "__main__":
     print("Frequency:", settings.get_frequency(), "hours")
     print("Login username:", settings.get_login_credentials()["username"])
     print("Admin password valid:", settings.verify_admin_password("YB02Ss3JJdk"))
+
 

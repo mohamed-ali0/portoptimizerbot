@@ -136,9 +136,9 @@ def bring_chrome_to_front():
         return False
 
 
-def take_screenshot(username, password):
+def download_excel_report(username, password):
     """
-    Automate login to PortOptimizer portal and take a full-page screenshot
+    Automate login to PortOptimizer portal and download Excel report
     
     Args:
         username: Portal username
@@ -172,7 +172,7 @@ def take_screenshot(username, password):
             print(f"[{datetime.now()}] WARNING: gofullpage.crx not found in project directory")
         
         # Set download preferences and grant extension permissions
-        download_dir = os.path.join(os.getcwd(), "screenshots")
+        download_dir = os.path.join(os.getcwd(), "downloads")
         os.makedirs(download_dir, exist_ok=True)
         
         prefs = {
@@ -296,270 +296,102 @@ def take_screenshot(username, password):
         print(f"[{datetime.now()}] Waiting 45s for page to load after login...")
         time.sleep(45)
         
-        # Take full-page screenshot using GoFullPage extension keyboard shortcut
-        print(f"[{datetime.now()}] Taking full-page screenshot using GoFullPage extension...")
-        
-        # Scroll to top first
-        driver.execute_script("window.scrollTo(0, 0);")
-        time.sleep(2)
-        
-        # Store current window handle
-        current_window = driver.current_window_handle
-        
-        # Trigger GoFullPage using keyboard shortcut (Ctrl + Shift + K)
-        # NOTE: Alt+Shift+P conflicts with browser "New Tab Group" shortcut
-        print(f"[{datetime.now()}] Triggering GoFullPage with keyboard shortcut (Ctrl + Shift + K)...")
-        
-        # Use win32gui to send keyboard events directly to Chrome window
-        # This method works even when RDP is minimized
-        # Find Chrome window
-        def enum_windows_callback(hwnd, windows):
-            if win32gui.IsWindowVisible(hwnd):
-                window_text = win32gui.GetWindowText(hwnd)
-                if "Google Chrome" in window_text or "Chrome" in window_text:
-                    windows.append(hwnd)
-            return True
-        
-        windows = []
-        win32gui.EnumWindows(enum_windows_callback, windows)
-        
-        if windows:
-            chrome_hwnd = windows[0]
-            print(f"[{datetime.now()}] Found Chrome window, sending keyboard shortcut...")
-            
-            # Send Ctrl+Shift+K using win32gui
-            # Press and hold Ctrl
-            win32gui.SendMessage(chrome_hwnd, win32con.WM_KEYDOWN, win32con.VK_CONTROL, 0)
-            time.sleep(0.05)
-            
-            # Press and hold Shift
-            win32gui.SendMessage(chrome_hwnd, win32con.WM_KEYDOWN, win32con.VK_SHIFT, 0)
-            time.sleep(0.1)
-            
-            # Press K
-            win32gui.SendMessage(chrome_hwnd, win32con.WM_KEYDOWN, ord('K'), 0)
-            time.sleep(0.05)
-            win32gui.SendMessage(chrome_hwnd, win32con.WM_KEYUP, ord('K'), 0)
-            
-            # Release modifiers in reverse order
-            time.sleep(0.1)
-            win32gui.SendMessage(chrome_hwnd, win32con.WM_KEYUP, win32con.VK_SHIFT, 0)
-            time.sleep(0.05)
-            win32gui.SendMessage(chrome_hwnd, win32con.WM_KEYUP, win32con.VK_CONTROL, 0)
-            
-            print(f"[{datetime.now()}] win32gui keyboard shortcut sent (Ctrl+Shift+K)")
-        else:
-            raise Exception("Chrome window not found")
-        
-        # Wait 30 seconds for extension to capture and open result page
-        print(f"[{datetime.now()}] Waiting 30 seconds for extension to capture and open result page...")
-        time.sleep(30)
-        
-        # Use Chrome DevTools Protocol to get ALL tabs/targets (more reliable than window_handles)
-        print(f"[{datetime.now()}] Using CDP to detect all Chrome tabs/windows...")
-        extension_url = None
-        
+        # Click the "Return Signal" tab and wait 15 seconds
+        print(f"[{datetime.now()}] Looking for Return Signal tab...")
         try:
-            targets = driver.execute_cdp_cmd("Target.getTargets", {})
-            print(f"[{datetime.now()}] CDP found {len(targets.get('targetInfos', []))} target(s)")
-            
-            # Look for extension page in targets
-            for idx, target in enumerate(targets.get('targetInfos', [])):
-                target_url = target.get('url', '')
-                target_title = target.get('title', '')
-                target_type = target.get('type', '')
-                print(f"[{datetime.now()}] Target {idx + 1}: type={target_type}, title='{target_title[:50]}', url='{target_url[:80]}...'")
-                
-                # Check if this is the extension result page (must be 'page' type and chrome-extension URL)
-                if target_type == 'page' and target_url.startswith('chrome-extension://fdpohaocaechififmbbbbbknoalclacl'):
-                    extension_url = target_url
-                    print(f"[{datetime.now()}] ✓ Found extension result page!")
-                    print(f"[{datetime.now()}] Extension URL: {extension_url}")
-                    break
-            
-            # If we found the extension URL, navigate directly to it
-            if extension_url:
-                print(f"[{datetime.now()}] Navigating directly to extension page...")
-                driver.get(extension_url)
-                time.sleep(3)  # Wait for page to load
-                
-                print(f"[{datetime.now()}] ✓ Successfully navigated to extension page")
-                print(f"[{datetime.now()}] Current URL: {driver.current_url[:100]}")
-                print(f"[{datetime.now()}] Current Title: {driver.title[:50]}")
-            else:
-                print(f"[{datetime.now()}] WARNING: Extension page not found in CDP targets")
-                print(f"[{datetime.now()}] Extension may not have opened properly")
-                
+            return_signal_tab = WebDriverWait(driver, 10).until(
+                EC.element_to_be_clickable((By.XPATH, "//span[@class='mdc-tab__text-label' and text()='Return Signal']"))
+            )
+            print(f"[{datetime.now()}] Clicking Return Signal tab...")
+            return_signal_tab.click()
+            print(f"[{datetime.now()}] Waiting 15 seconds after clicking Return Signal tab...")
+            time.sleep(15)  # Wait 15 seconds as requested
         except Exception as e:
-            print(f"[{datetime.now()}] CDP detection failed: {str(e)[:100]}")
+            print(f"[{datetime.now()}] Error: Could not find or click Return Signal tab: {str(e)}")
+            raise Exception(f"Could not find Return Signal tab: {str(e)}")
         
-        # Only check window handles if we didn't find extension via CDP
-        if not extension_url:
-            print(f"[{datetime.now()}] Fallback: Checking traditional window handles...")
-            all_windows = driver.window_handles
-            print(f"[{datetime.now()}] Detected {len(all_windows)} window(s)")
-            
-            # If multiple windows detected, enumerate them
-            if len(all_windows) > 1:
-                print(f"[{datetime.now()}] Found {len(all_windows)} windows, checking each...")
-                extension_window = None
-                
-                for idx, window_handle in enumerate(all_windows):
-                    driver.switch_to.window(window_handle)
-                    current_url = driver.current_url
-                    page_title = driver.title
-                    print(f"[{datetime.now()}] Window {idx + 1}: '{page_title[:50]}' | '{current_url[:80]}'")
-                    
-                    # Check if this is the extension page
-                    if 'chrome-extension://' in current_url or 'gofullpage' in current_url.lower():
-                        extension_window = window_handle
-                        print(f"[{datetime.now()}] ✓ This is the extension window (by URL)")
-                        break
-                    
-                    # Check for download button
-                    try:
-                        buttons = driver.find_elements(By.CSS_SELECTOR, "a.btn-download, a#btn-download, a[download]")
-                        if buttons:
-                            extension_window = window_handle
-                            print(f"[{datetime.now()}] ✓ This window has download button")
-                            break
-                    except:
-                        pass
-                
-                # Switch to extension window if found
-                if extension_window:
-                    driver.switch_to.window(extension_window)
-                    print(f"[{datetime.now()}] Switched to extension result page")
-                else:
-                    # Use last window as fallback
-                    driver.switch_to.window(all_windows[-1])
-                    print(f"[{datetime.now()}] Using last window as fallback")
-            else:
-                # Only 1 window detected - the driver might already be on the extension page
-                # This happens when ChromeDriver doesn't properly track window handles
-                print(f"[{datetime.now()}] Only 1 window detected by driver")
-                print(f"[{datetime.now()}] Driver may already be on extension page (ChromeDriver sync issue)")
-                print(f"[{datetime.now()}] Will attempt to find download button on current page...")
-        
-        # Find and click the download button - try multiple selectors
+        # Look for download button
         print(f"[{datetime.now()}] Looking for download button...")
         download_button = None
-        download_filename = None
         
-        # Try multiple selector strategies
+        # Try multiple selectors for the download button
         selectors = [
-            ("CSS: a.btn.btn-download#btn-download", By.CSS_SELECTOR, "a.btn.btn-download#btn-download"),
-            ("CSS: a#btn-download", By.CSS_SELECTOR, "a#btn-download"),
-            ("CSS: a.btn-download", By.CSS_SELECTOR, "a.btn-download"),
-            ("CSS: a[download]", By.CSS_SELECTOR, "a[download]"),
-            ("ID: btn-download", By.ID, "btn-download"),
-            ("XPATH: //a[contains(@class, 'btn-download')]", By.XPATH, "//a[contains(@class, 'btn-download')]"),
+            "button[title='Download']",
+            "button[aria-label='Download']",
+            "button:contains('Download')",
+            "a[href*='download']",
+            "button[class*='download']",
+            "a[class*='download']",
+            "button[onclick*='download']",
+            "a[onclick*='download']"
         ]
         
-        for selector_name, by_method, selector_value in selectors:
+        for selector in selectors:
             try:
-                print(f"[{datetime.now()}] Trying {selector_name}...")
-                download_button = WebDriverWait(driver, 5).until(
-                    EC.presence_of_element_located((by_method, selector_value))
-                )
-                if download_button:
-                    download_filename = download_button.get_attribute("download")
-                    print(f"[{datetime.now()}] Found download button with {selector_name}!")
-                    print(f"[{datetime.now()}] Download filename: {download_filename}")
-                    break
-            except Exception as e:
-                print(f"[{datetime.now()}] {selector_name} failed: {str(e)[:50]}")
-        
-        if not download_button:
-            # Last resort - print page source snippet for debugging
-            print(f"[{datetime.now()}] ERROR: Could not find download button with any selector")
-            print(f"[{datetime.now()}] Current page title: {driver.title}")
-            print(f"[{datetime.now()}] Current page URL: {driver.current_url}")
-            try:
-                page_source = driver.page_source
-                print(f"[{datetime.now()}] Page source length: {len(page_source)} characters")
-                if 'btn-download' in page_source:
-                    print(f"[{datetime.now()}] Page DOES contain 'btn-download' in source!")
+                if "contains" in selector:
+                    # Use XPath for text contains
+                    xpath_selector = f"//button[contains(text(), 'Download')]"
+                    download_button = WebDriverWait(driver, 5).until(
+                        EC.element_to_be_clickable((By.XPATH, xpath_selector))
+                    )
                 else:
-                    print(f"[{datetime.now()}] Page does NOT contain 'btn-download' in source")
+                    download_button = WebDriverWait(driver, 5).until(
+                        EC.element_to_be_clickable((By.CSS_SELECTOR, selector))
+                    )
+                print(f"[{datetime.now()}] Found download button with selector: {selector}")
+                break
             except:
-                pass
-            raise Exception("Could not find download button on extension result page")
+                continue
         
-        # Click the download button
-        try:
+        if download_button:
+            print(f"[{datetime.now()}] Clicking download button...")
             download_button.click()
             print(f"[{datetime.now()}] Download button clicked")
             
-            # Wait for potential Chrome extension permission popup
-            time.sleep(3)
-            
-            # Handle Chrome extension permission popup using keyboard (since it's a Chrome system dialog)
-            print(f"[{datetime.now()}] Checking for extension permission popup...")
-            
-            # Try to handle the Chrome extension permission dialog using keyboard navigation
-            # Since this is a Chrome system dialog, Selenium can't interact with it
-            # We use keyboard: Tab to "Allow" button, then Enter to click it
-            keyboard = Controller()
-            
-            try:
-                # Press Tab to focus on "Allow" button (it's usually the default button)
-                keyboard.press(Key.tab)
-                time.sleep(0.1)
-                keyboard.release(Key.tab)
-                time.sleep(0.3)
-                
-                # Press Enter to click "Allow"
-                keyboard.press(Key.enter)
-                time.sleep(0.1)
-                keyboard.release(Key.enter)
-                
-                print(f"[{datetime.now()}] Attempted to click 'Allow' via keyboard (Tab + Enter)")
-                time.sleep(2)  # Wait for permission to be processed
-                
-            except Exception as e:
-                print(f"[{datetime.now()}] No permission popup or already granted: {str(e)}")
-            
             # Wait for download to complete
-            print(f"[{datetime.now()}] Waiting 10 seconds for download to complete...")
             time.sleep(10)
-            
-            # Close/kill the extension tab
-            print(f"[{datetime.now()}] Closing extension tab...")
-            driver.close()
-            
-            # Switch back to main window
-            driver.switch_to.window(current_window)
-            print(f"[{datetime.now()}] Switched back to main window")
-            
-            # Generate our standardized filename
-            timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-            final_filename = f"{timestamp}.png"
-            screenshots_dir = "screenshots"
-            
-            # Find the downloaded file and rename it
-            downloaded_files = glob.glob(os.path.join(screenshots_dir, "screencapture-*.png"))
-            if downloaded_files:
-                # Get the most recent file
-                latest_file = max(downloaded_files, key=os.path.getctime)
-                final_path = os.path.join(screenshots_dir, final_filename)
-                
-                # Rename to our standard format
-                os.rename(latest_file, final_path)
-                print(f"[{datetime.now()}] Screenshot saved: {final_filename}")
-                return True, final_filename
+            print(f"[{datetime.now()}] Excel download should be complete")
+        else:
+            print(f"[{datetime.now()}] Download button not found")
+            print(f"[{datetime.now()}] Page source length: {len(driver.page_source)} characters")
+            if "download" in driver.page_source.lower():
+                print(f"[{datetime.now()}] Download text found in page source")
             else:
-                print(f"[{datetime.now()}] WARNING: Downloaded file not found, keeping original name")
-                return True, download_filename
-                
-        except Exception as e:
-            print(f"[{datetime.now()}] Error clicking download button: {str(e)}")
-            # Switch back to main window
-            driver.switch_to.window(current_window)
-            raise
+                print(f"[{datetime.now()}] Download text NOT found in page source")
+            raise Exception("Could not find download button")
+        
+        # Generate our standardized filename with UTC timestamp for timezone independence
+        timestamp = datetime.utcnow().strftime("%Y-%m-%d_%H-%M-%S")
+        final_filename = f"{timestamp}.xlsx"
+        
+        # Check downloads directory (where Chrome downloads files)
+        downloads_dir = "downloads"
+        os.makedirs(downloads_dir, exist_ok=True)
+        
+        # Find the downloaded Excel file
+        downloaded_files = []
+        
+        # Check downloads directory
+        if os.path.exists(downloads_dir):
+            downloaded_files.extend(glob.glob(os.path.join(downloads_dir, "*.xlsx")))
+            downloaded_files.extend(glob.glob(os.path.join(downloads_dir, "*.xls")))
+        
+        if downloaded_files:
+            # Get the most recent file
+            latest_file = max(downloaded_files, key=os.path.getctime)
+            final_path = os.path.join(downloads_dir, final_filename)
+            
+            # Rename to our standard format
+            os.rename(latest_file, final_path)
+            print(f"[{datetime.now()}] Excel file saved: {final_filename}")
+            return True, final_filename
+        else:
+            print(f"[{datetime.now()}] WARNING: Downloaded Excel file not found in {downloads_dir}")
+            print(f"[{datetime.now()}] Available files in downloads: {os.listdir(downloads_dir) if os.path.exists(downloads_dir) else 'Directory not found'}")
+            return True, "Excel file downloaded but filename unknown"
     
     except Exception as e:
-        error_msg = f"Error taking screenshot: {str(e)}"
+        error_msg = f"Error downloading Excel report: {str(e)}"
         print(f"[{datetime.now()}] {error_msg}")
         return False, error_msg
     
@@ -592,7 +424,7 @@ def take_screenshot(username, password):
 if __name__ == "__main__":
     # Test the automation
     print("Testing automation script...")
-    success, message = take_screenshot("sara@fouroneone.io", "Ss925201!")
+    success, message = download_excel_report("sara@fouroneone.io", "Ss925201!")
     
     if success:
         print(f"✓ Success: {message}")

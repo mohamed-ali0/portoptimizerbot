@@ -5,14 +5,131 @@ import os
 import json
 import zipfile
 from pathlib import Path
-from automation import take_screenshot
+from automation import download_excel_report
 from system_settings import SystemSettings
 import threading
+import pandas as pd
+from openpyxl import load_workbook
+from openpyxl.styles import Border, Side
+import subprocess
 
 app = Flask(__name__)
 
 # Initialize system settings
 settings = SystemSettings()
+
+def add_separator_lines_to_excel(excel_path, output_path):
+    """
+    Add visible separator lines to Excel file and convert to PDF
+    """
+    try:
+        print(f"[{datetime.now()}] Adding separator lines to Excel file...")
+        
+        # Load the Excel file
+        workbook = load_workbook(excel_path)
+        worksheet = workbook.active
+        
+        # Define border style for separator lines
+        thin_border = Border(
+            left=Side(style='thin'),
+            right=Side(style='thin'),
+            top=Side(style='thin'),
+            bottom=Side(style='thin')
+        )
+        
+        # Apply borders to all cells with data
+        for row in worksheet.iter_rows():
+            for cell in row:
+                if cell.value is not None:
+                    cell.border = thin_border
+        
+        # Save the modified Excel file
+        workbook.save(output_path)
+        print(f"[{datetime.now()}] Excel file with separator lines saved: {output_path}")
+        
+        return True
+        
+    except Exception as e:
+        print(f"[{datetime.now()}] Error adding separator lines: {str(e)}")
+        return False
+
+def convert_excel_to_pdf(excel_path, pdf_path):
+    """
+    Convert Excel file to PDF with borders in landscape legal format using PowerShell
+    """
+    try:
+        print(f"[{datetime.now()}] Converting Excel to PDF with borders...")
+        
+        # Create PowerShell script for Excel to PDF conversion with borders
+        ps_script = f'''
+        $excel = New-Object -ComObject Excel.Application
+        $excel.Visible = $false
+        $excel.DisplayAlerts = $false
+        
+        try {{
+            $workbook = $excel.Workbooks.Open('{os.path.abspath(excel_path)}')
+            $worksheet = $workbook.Worksheets.Item(1)
+            
+            # Add borders to all cells with data
+            $usedRange = $worksheet.UsedRange
+            if ($usedRange) {{
+                $usedRange.Borders.LineStyle = 1  # xlContinuous
+                $usedRange.Borders.Weight = 1     # xlThin
+                # Set gray color for all border sides
+                $usedRange.Borders.Item(7).Color = 12632256  # xlEdgeLeft - Light gray
+                $usedRange.Borders.Item(8).Color = 12632256  # xlEdgeTop - Light gray  
+                $usedRange.Borders.Item(9).Color = 12632256  # xlEdgeBottom - Light gray
+                $usedRange.Borders.Item(10).Color = 12632256 # xlEdgeRight - Light gray
+            }}
+            
+            # Set to Legal landscape
+            $worksheet.PageSetup.Orientation = 2  # xlLandscape
+            $worksheet.PageSetup.PaperSize = 5     # xlPaperLegal
+            
+            # Export to PDF
+            $pdf_path = '{os.path.abspath(pdf_path)}'
+            $workbook.ExportAsFixedFormat(0, $pdf_path)
+            
+            $workbook.Close()
+            $excel.Quit()
+            
+            Write-Host "PDF created: $pdf_path"
+        }} catch {{
+            Write-Host "Error: $_"
+            $excel.Quit()
+        }}
+        '''
+        
+        # Write PowerShell script to file
+        with open('temp.ps1', 'w') as f:
+            f.write(ps_script)
+        
+        try:
+            # Run PowerShell script
+            result = subprocess.run(['powershell', '-ExecutionPolicy', 'Bypass', '-File', 'temp.ps1'], 
+                                  capture_output=True, text=True, timeout=60)
+            
+            if result.returncode == 0:
+                print(f"[{datetime.now()}] PDF conversion successful: {pdf_path}")
+                return True
+            else:
+                print(f"[{datetime.now()}] PowerShell error: {result.stderr}")
+                return False
+                
+        except subprocess.TimeoutExpired:
+            print(f"[{datetime.now()}] PDF conversion timed out")
+            return False
+        except Exception as e:
+            print(f"[{datetime.now()}] Error: {e}")
+            return False
+        finally:
+            # Clean up
+            if os.path.exists('temp.ps1'):
+                os.remove('temp.ps1')
+            
+    except Exception as e:
+        print(f"[{datetime.now()}] Error in PDF conversion: {str(e)}")
+        return False
 
 # Initialize screenshots directory
 SCREENSHOTS_DIR = "screenshots"
@@ -23,24 +140,40 @@ scheduler = BackgroundScheduler()
 screenshot_lock = threading.Lock()
 
 
-def scheduled_screenshot_task():
-    """Task to take screenshot - runs according to frequency"""
+def scheduled_excel_download_task():
+    """Task to download Excel report - runs according to frequency"""
     with screenshot_lock:
         try:
-            print(f"[{datetime.now()}] Taking scheduled screenshot...")
+            print(f"[{datetime.now()}] Downloading scheduled Excel report...")
             credentials = settings.get_login_credentials()
-            success, message = take_screenshot(
+            success, message = download_excel_report(
                 credentials['username'], 
                 credentials['password']
             )
             if success:
-                print(f"[{datetime.now()}] Screenshot taken successfully: {message}")
+                print(f"[{datetime.now()}] Excel download completed successfully: {message}")
+                
+                # Convert Excel to PDF with borders
+                excel_path = os.path.join("downloads", message)
+                if os.path.exists(excel_path):
+                    # Create pdfs subdirectory
+                    pdfs_dir = os.path.join("downloads", "pdfs")
+                    os.makedirs(pdfs_dir, exist_ok=True)
+                    
+                    # Convert directly to PDF with borders
+                    pdf_filename = message.replace('.xlsx', '.pdf')
+                    pdf_path = os.path.join(pdfs_dir, pdf_filename)
+                    
+                    if convert_excel_to_pdf(excel_path, pdf_path):
+                        print(f"[{datetime.now()}] PDF created successfully: {pdf_path}")
+                    else:
+                        print(f"[{datetime.now()}] PDF conversion failed")
             else:
-                print(f"[{datetime.now()}] Screenshot failed: {message}")
+                print(f"[{datetime.now()}] Excel download failed: {message}")
                 # Schedule retry in 5 minutes
                 print(f"[{datetime.now()}] Scheduling retry in 5 minutes...")
                 scheduler.add_job(
-                    func=scheduled_screenshot_task,
+                    func=scheduled_excel_download_task,
                     trigger="date",
                     run_date=datetime.now() + timedelta(minutes=5),
                     id='screenshot_retry',
@@ -52,7 +185,7 @@ def scheduled_screenshot_task():
             print(f"[{datetime.now()}] Scheduling retry in 5 minutes after exception...")
             try:
                 scheduler.add_job(
-                    func=scheduled_screenshot_task,
+                    func=scheduled_excel_download_task,
                     trigger="date",
                     run_date=datetime.now() + timedelta(minutes=5),
                     id='screenshot_retry',
@@ -67,7 +200,7 @@ def restart_scheduler():
     scheduler.remove_all_jobs()
     frequency_hours = settings.get_frequency()
     scheduler.add_job(
-        func=scheduled_screenshot_task,
+        func=scheduled_excel_download_task,
         trigger="interval",
         hours=frequency_hours,
         id='screenshot_job',
@@ -96,22 +229,48 @@ def index():
 @app.route('/download/<filename>', methods=['GET'])
 def download_file(filename):
     """
-    Download a specific screenshot file
+    Download a specific file (Excel or PDF)
     """
     try:
-        file_path = os.path.join(SCREENSHOTS_DIR, filename)
-        if os.path.exists(file_path):
-            return send_from_directory(
-                SCREENSHOTS_DIR, 
-                filename,
-                as_attachment=True,
-                download_name=filename
-            )
-        else:
-            return jsonify({
-                "success": False,
-                "error": "File not found"
-            }), 404
+        # Check downloads/pdfs directory first
+        pdfs_dir = os.path.join("downloads", "pdfs")
+        if os.path.exists(pdfs_dir):
+            file_path = os.path.join(pdfs_dir, filename)
+            if os.path.exists(file_path):
+                return send_from_directory(
+                    pdfs_dir, 
+                    filename,
+                    as_attachment=True,
+                    download_name=filename
+                )
+        
+        # Check downloads directory
+        downloads_dir = "downloads"
+        if os.path.exists(downloads_dir):
+            file_path = os.path.join(downloads_dir, filename)
+            if os.path.exists(file_path):
+                return send_from_directory(
+                    downloads_dir, 
+                    filename,
+                    as_attachment=True,
+                    download_name=filename
+                )
+        
+        # Check screenshots directory as fallback
+        if os.path.exists(SCREENSHOTS_DIR):
+            file_path = os.path.join(SCREENSHOTS_DIR, filename)
+            if os.path.exists(file_path):
+                return send_from_directory(
+                    SCREENSHOTS_DIR, 
+                    filename,
+                    as_attachment=True,
+                    download_name=filename
+                )
+        
+        return jsonify({
+            "success": False,
+            "error": "File not found"
+        }), 404
     except Exception as e:
         return jsonify({
             "success": False,
@@ -119,10 +278,10 @@ def download_file(filename):
         }), 500
 
 
-@app.route('/screenshot/<date_str>', methods=['GET'])
-def get_screenshot(date_str):
+@app.route('/excel/<date_str>', methods=['GET'])
+def get_excel_report(date_str):
     """
-    Get screenshot for a specific date
+    Get Excel report for a specific date
     Date format: YYYY-MM-DD
     Returns JSON with download link
     """
@@ -130,33 +289,98 @@ def get_screenshot(date_str):
         # Validate date format
         target_date = datetime.strptime(date_str, "%Y-%m-%d")
         
-        # Find screenshot files for that date
+        # Find Excel files for that date
         date_pattern = target_date.strftime("%Y-%m-%d")
         matching_files = []
         
-        for filename in os.listdir(SCREENSHOTS_DIR):
-            if filename.startswith(date_pattern) and filename.endswith('.png'):
-                matching_files.append(filename)
+        # Check downloads directory
+        downloads_dir = "downloads"
+        if os.path.exists(downloads_dir):
+            for filename in os.listdir(downloads_dir):
+                if filename.startswith(date_pattern) and filename.endswith(('.xlsx', '.xls')):
+                    matching_files.append(filename)
         
         if not matching_files:
             return jsonify({
                 "success": False,
-                "error": f"No screenshot found for date {date_str}"
+                "error": f"No Excel report found for date {date_str}"
             }), 404
         
-        # Return the most recent screenshot for that date
+        # Return the most recent Excel file for that date
         matching_files.sort(reverse=True)
-        screenshot_file = matching_files[0]
+        excel_file = matching_files[0]
         
         # Return JSON with download link
-        download_url = f"{request.host_url}download/{screenshot_file}"
+        download_url = f"{request.host_url}download/{excel_file}"
         
         return jsonify({
             "success": True,
             "date": date_str,
-            "filename": screenshot_file,
+            "filename": excel_file,
             "download_url": download_url,
-            "message": f"Screenshot found for {date_str}"
+            "message": f"Excel report found for {date_str}"
+        })
+    
+    except ValueError:
+        return jsonify({
+            "success": False,
+            "error": "Invalid date format. Use YYYY-MM-DD"
+        }), 400
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
+
+
+@app.route('/pdf/<date_str>', methods=['GET'])
+def get_pdf_report(date_str):
+    """
+    Get PDF report for a specific date
+    Date format: YYYY-MM-DD
+    Returns JSON with download link
+    """
+    try:
+        # Validate date format
+        target_date = datetime.strptime(date_str, "%Y-%m-%d")
+        
+        # Find PDF files for that date
+        date_pattern = target_date.strftime("%Y-%m-%d")
+        matching_files = []
+        
+        # Check downloads/pdfs directory
+        pdfs_dir = os.path.join("downloads", "pdfs")
+        if os.path.exists(pdfs_dir):
+            for filename in os.listdir(pdfs_dir):
+                if filename.startswith(date_pattern) and filename.endswith('.pdf'):
+                    matching_files.append(filename)
+        
+        # Check downloads directory as fallback
+        downloads_dir = "downloads"
+        if os.path.exists(downloads_dir):
+            for filename in os.listdir(downloads_dir):
+                if filename.startswith(date_pattern) and filename.endswith('.pdf'):
+                    matching_files.append(filename)
+        
+        if not matching_files:
+            return jsonify({
+                "success": False,
+                "error": f"No PDF report found for date {date_str}"
+            }), 404
+        
+        # Return the most recent PDF file for that date
+        matching_files.sort(reverse=True)
+        pdf_file = matching_files[0]
+        
+        # Return JSON with download link
+        download_url = f"{request.host_url}download/{pdf_file}"
+        
+        return jsonify({
+            "success": True,
+            "date": date_str,
+            "filename": pdf_file,
+            "download_url": download_url,
+            "message": f"PDF report found for {date_str}"
         })
     
     except ValueError:
@@ -431,10 +655,67 @@ def cleanup():
         }), 500
 
 
-@app.route('/screenshot/now', methods=['POST'])
-def take_screenshot_now():
+@app.route('/admin/preferred_hour', methods=['POST'])
+def set_preferred_hour():
     """
-    Take a screenshot immediately
+    Set preferred hour for scheduled captures
+    Body: {
+        "admin_password": "password",
+        "preferred_hour": 10
+    }
+    """
+    try:
+        data = request.get_json()
+        
+        if not data:
+            return jsonify({
+                "success": False,
+                "error": "Request body must be JSON"
+            }), 400
+        
+        admin_password = data.get('admin_password')
+        preferred_hour = data.get('preferred_hour')
+        
+        if not admin_password or preferred_hour is None:
+            return jsonify({
+                "success": False,
+                "error": "admin_password and preferred_hour are required"
+            }), 400
+        
+        # Verify admin password
+        if not settings.verify_admin_password(admin_password):
+            return jsonify({
+                "success": False,
+                "error": "Invalid admin password"
+            }), 403
+        
+        # Validate hour
+        if not isinstance(preferred_hour, int) or preferred_hour < 0 or preferred_hour > 23:
+            return jsonify({
+                "success": False,
+                "error": "preferred_hour must be an integer between 0 and 23"
+            }), 400
+        
+        # Update preferred hour
+        settings.set_preferred_hour(preferred_hour)
+        
+        return jsonify({
+            "success": True,
+            "message": f"Preferred hour updated to {preferred_hour}:00",
+            "preferred_hour": preferred_hour
+        })
+    
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
+
+
+@app.route('/excel/now', methods=['POST'])
+def download_excel_now():
+    """
+    Download Excel report immediately
     Body: {
         "admin_password": "password"
     }
@@ -463,20 +744,50 @@ def take_screenshot_now():
                 "error": "Invalid admin password"
             }), 403
         
-        # Take screenshot
+        # Download Excel report
         with screenshot_lock:
             credentials = settings.get_login_credentials()
-            success, message = take_screenshot(
+            success, message = download_excel_report(
                 credentials['username'], 
                 credentials['password']
             )
         
         if success:
-            return jsonify({
-                "success": True,
-                "message": "Screenshot taken successfully",
-                "filename": message
-            })
+            # Convert Excel to PDF with borders
+            excel_path = os.path.join("downloads", message)
+            if os.path.exists(excel_path):
+                # Create pdfs subdirectory
+                pdfs_dir = os.path.join("downloads", "pdfs")
+                os.makedirs(pdfs_dir, exist_ok=True)
+                
+                # Convert directly to PDF with borders
+                pdf_filename = message.replace('.xlsx', '.pdf')
+                pdf_path = os.path.join(pdfs_dir, pdf_filename)
+                
+                if convert_excel_to_pdf(excel_path, pdf_path):
+                    print(f"[{datetime.now()}] PDF created successfully: {pdf_path}")
+                    return jsonify({
+                        "success": True,
+                        "message": "Excel report downloaded and PDF created successfully",
+                        "excel_filename": message,
+                        "pdf_filename": pdf_filename,
+                        "download_url": f"{request.host_url}download/{pdf_filename}"
+                    })
+                else:
+                    print(f"[{datetime.now()}] PDF conversion failed")
+                    return jsonify({
+                        "success": True,
+                        "message": "Excel report downloaded but PDF conversion failed",
+                        "excel_filename": message,
+                        "download_url": f"{request.host_url}download/{message}"
+                    })
+            else:
+                return jsonify({
+                    "success": True,
+                    "message": "Excel report downloaded successfully",
+                    "filename": message,
+                    "download_url": f"{request.host_url}download/{message}"
+                })
         else:
             return jsonify({
                 "success": False,
@@ -495,10 +806,24 @@ def status():
     """Get current system status"""
     try:
         frequency = settings.get_frequency()
+        preferred_hour = settings.get_preferred_hour()
         credentials = settings.get_login_credentials()
         
-        # Count screenshots
+        # Count files
         screenshot_count = len([f for f in os.listdir(SCREENSHOTS_DIR) if f.endswith('.png')])
+        
+        # Count Excel and PDF files
+        downloads_dir = "downloads"
+        pdfs_dir = os.path.join("downloads", "pdfs")
+        
+        excel_count = 0
+        pdf_count = 0
+        
+        if os.path.exists(downloads_dir):
+            excel_count = len([f for f in os.listdir(downloads_dir) if f.endswith(('.xlsx', '.xls'))])
+        
+        if os.path.exists(pdfs_dir):
+            pdf_count = len([f for f in os.listdir(pdfs_dir) if f.endswith('.pdf')])
         
         # Get last screenshot time
         screenshots = sorted(
@@ -510,8 +835,11 @@ def status():
         return jsonify({
             "success": True,
             "frequency_hours": frequency,
+            "preferred_hour": preferred_hour,
             "username": credentials['username'],
             "total_screenshots": screenshot_count,
+            "total_excel_files": excel_count,
+            "total_pdf_files": pdf_count,
             "last_screenshot": last_screenshot,
             "scheduler_running": scheduler.running
         })

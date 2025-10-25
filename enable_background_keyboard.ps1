@@ -36,3 +36,4 @@ Write-Host "After restart, test with:"
 Write-Host "  python app.py"
 Write-Host "  curl -X POST http://localhost:5000/screenshot/now -H 'Content-Type: application/json' -d '{\"admin_password\":\"YB02Ss3JJdk\"}'"
 Write-Host ""
+

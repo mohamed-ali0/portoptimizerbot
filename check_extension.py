@@ -117,3 +117,4 @@ print("   → Use CDP method (Solution 2 in troubleshooting guide)")
 print("   → No extension needed, uses Chrome's built-in screenshot")
 print("="*80)
 
+
