@@ -118,3 +118,5 @@ print("   → No extension needed, uses Chrome's built-in screenshot")
 print("="*80)
 
 
+
+

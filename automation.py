@@ -361,8 +361,9 @@ def download_excel_report(username, password):
             raise Exception("Could not find download button")
         
         # Generate our standardized filename with UTC timestamp for timezone independence
+        # Format: POLA_Empty_Returns_YYYY-MM-DD_HH-MM-SS.xlsx
         timestamp = datetime.utcnow().strftime("%Y-%m-%d_%H-%M-%S")
-        final_filename = f"{timestamp}.xlsx"
+        final_filename = f"POLA_Empty_Returns_{timestamp}.xlsx"
         
         # Check downloads directory (where Chrome downloads files)
         downloads_dir = "downloads"

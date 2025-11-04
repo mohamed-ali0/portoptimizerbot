@@ -14,6 +14,13 @@ class SystemSettings:
         "login_credentials": {
             "username": "sara@fouroneone.io",
             "password": "Ss925201!"
+        },
+        "watermark": {
+            "enabled": True,
+            "text": None,  # Custom watermark text (e.g., "CONFIDENTIAL")
+            "use_pdf_name": True,  # Use PDF filename (date) as watermark text
+            "include_timestamp": True,  # Include generation timestamp
+            "include_date": True  # Include report date (only if use_pdf_name is False)
         }
     }
     
@@ -82,6 +89,30 @@ class SystemSettings:
             raise ValueError("Hour must be an integer between 0 and 23")
         settings = self._load_settings()
         settings["preferred_hour"] = hour
+        return self._save_settings(settings)
+    
+    def get_watermark_settings(self):
+        """Get watermark settings"""
+        settings = self._load_settings()
+        return settings.get("watermark", self.DEFAULT_SETTINGS["watermark"])
+    
+    def set_watermark_settings(self, enabled=None, text=None, use_pdf_name=None, include_timestamp=None, include_date=None):
+        """Set watermark settings"""
+        settings = self._load_settings()
+        if "watermark" not in settings:
+            settings["watermark"] = self.DEFAULT_SETTINGS["watermark"].copy()
+        
+        if enabled is not None:
+            settings["watermark"]["enabled"] = enabled
+        if text is not None:
+            settings["watermark"]["text"] = text
+        if use_pdf_name is not None:
+            settings["watermark"]["use_pdf_name"] = use_pdf_name
+        if include_timestamp is not None:
+            settings["watermark"]["include_timestamp"] = include_timestamp
+        if include_date is not None:
+            settings["watermark"]["include_date"] = include_date
+        
         return self._save_settings(settings)
     
     def get_all_settings(self, include_passwords=False):

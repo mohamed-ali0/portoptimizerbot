@@ -12,6 +12,16 @@ import pandas as pd
 from openpyxl import load_workbook
 from openpyxl.styles import Border, Side
 import subprocess
+try:
+    from PyPDF2 import PdfReader, PdfWriter
+    from reportlab.pdfgen import canvas
+    from reportlab.lib.pagesizes import letter, landscape
+    from reportlab.lib.colors import gray
+    from reportlab.lib.units import inch
+    PDF_LIBRARIES_AVAILABLE = True
+except ImportError:
+    PDF_LIBRARIES_AVAILABLE = False
+    print("[WARNING] PyPDF2 or reportlab not available. Watermark functionality will be disabled.")
 
 app = Flask(__name__)
 
@@ -53,9 +63,122 @@ def add_separator_lines_to_excel(excel_path, output_path):
         print(f"[{datetime.now()}] Error adding separator lines: {str(e)}")
         return False
 
-def convert_excel_to_pdf(excel_path, pdf_path):
+def add_watermark_to_pdf(pdf_path, watermark_text=None, watermark_data=None, use_pdf_name=False):
+    """
+    Add watermark to PDF file
+    watermark_text: Text to display as watermark (e.g., "CONFIDENTIAL", timestamp)
+    watermark_data: Dictionary of additional data to include in watermark
+    use_pdf_name: If True, use PDF filename (date) as the main watermark text
+    """
+    if not PDF_LIBRARIES_AVAILABLE:
+        print(f"[{datetime.now()}] Skipping watermark - PDF libraries not available")
+        return False
+    
+    try:
+        print(f"[{datetime.now()}] Adding watermark to PDF...")
+        
+        # Create watermark text - USE FULL FILENAME (without extension)
+        watermark_lines = []
+        
+        # If use_pdf_name is True, use the full PDF filename (without extension) as watermark
+        if use_pdf_name:
+            pdf_filename = os.path.basename(pdf_path)
+            # Remove .pdf extension to get the full name (e.g., POLA_Empty_Returns_2025-11-02_23-23-10)
+            filename_without_ext = os.path.splitext(pdf_filename)[0]
+            print(f"[{datetime.now()}] Watermark: PDF path='{pdf_path}', filename='{pdf_filename}', watermark_text='{filename_without_ext}'")
+            
+            # Ensure we have a valid filename
+            if filename_without_ext:
+                watermark_lines.append(filename_without_ext)
+            else:
+                print(f"[{datetime.now()}] WARNING: Empty filename extracted from '{pdf_path}', using fallback")
+                watermark_lines.append(pdf_filename.replace('.pdf', ''))
+        # Add custom text if provided (but no additional data)
+        elif watermark_text:
+            watermark_lines.append(watermark_text)
+        
+        # If no watermark specified, use default with timestamp
+        if not watermark_lines:
+            timestamp = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S UTC")
+            watermark_lines.append(f"Generated: {timestamp}")
+        
+        watermark_text_final = "\n".join(watermark_lines)
+        
+        # Read the original PDF
+        reader = PdfReader(pdf_path)
+        writer = PdfWriter()
+        
+        # Get page dimensions (Legal landscape: 14 x 8.5 inches)
+        # Legal size: 14" x 8.5" (landscape)
+        page_width = 14 * inch
+        page_height = 8.5 * inch
+        
+        # Create watermark overlay with Legal landscape dimensions
+        watermark_path = pdf_path.replace('.pdf', '_watermark_temp.pdf')
+        c = canvas.Canvas(watermark_path, pagesize=(page_width, page_height))
+        
+        # Set watermark properties (light gray, semi-transparent, horizontal)
+        # Increase font size by 80%: 24 * 1.8 = 43.2, round to 43
+        font_size = int(24 * 1.8)  # 43
+        c.setFillColor(gray, alpha=0.3)  # 30% opacity
+        c.setFont("Helvetica-Bold", font_size)
+        
+        # Position at top of page, 2 pixels from top (horizontal, not rotated)
+        # PDF coordinates: origin (0,0) is at bottom-left, top is at page_height
+        # 2 pixels = 2 points (ReportLab uses points as units)
+        top_offset = 2  # 2 pixels from top
+        
+        # Split text into lines for multiline support
+        watermark_lines_list = watermark_text_final.split('\n')
+        line_height = font_size * 1.2  # Line spacing (120% of font size)
+        
+        # Draw each line of watermark text (horizontal, top-aligned)
+        # Position: 2 pixels from top, centered horizontally
+        for i, line in enumerate(watermark_lines_list):
+            if line.strip():  # Only draw non-empty lines
+                text_width = c.stringWidth(line, "Helvetica-Bold", font_size)
+                # X position: centered horizontally
+                x_pos = (page_width - text_width) / 2
+                # Y position: top of page minus 2 pixels, then down for each line
+                # drawString uses baseline, so subtract font_size to position top of text at offset
+                y_pos = page_height - top_offset - font_size - (i * line_height)
+                c.drawString(x_pos, y_pos, line)
+        
+        c.save()
+        
+        # Read watermark PDF
+        watermark_reader = PdfReader(watermark_path)
+        watermark_page = watermark_reader.pages[0]
+        
+        # Overlay watermark on all pages
+        for page in reader.pages:
+            # Merge watermark with page
+            page.merge_page(watermark_page)
+            writer.add_page(page)
+        
+        # Write watermarked PDF
+        with open(pdf_path, 'wb') as output_file:
+            writer.write(output_file)
+        
+        # Clean up temporary watermark file
+        if os.path.exists(watermark_path):
+            os.remove(watermark_path)
+        
+        print(f"[{datetime.now()}] Watermark added successfully")
+        return True
+        
+    except Exception as e:
+        print(f"[{datetime.now()}] Error adding watermark: {str(e)}")
+        # If watermark fails, return True anyway (PDF exists without watermark)
+        return True
+
+def convert_excel_to_pdf(excel_path, pdf_path, watermark_text=None, watermark_data=None, use_pdf_name=False):
     """
     Convert Excel file to PDF with borders in landscape legal format using PowerShell
+    Then add watermark if specified
+    watermark_text: Text to display as watermark (e.g., "CONFIDENTIAL", timestamp)
+    watermark_data: Dictionary of additional data to include in watermark
+    use_pdf_name: If True, use PDF filename (date) as the main watermark text
     """
     try:
         print(f"[{datetime.now()}] Converting Excel to PDF with borders...")
@@ -111,6 +234,11 @@ def convert_excel_to_pdf(excel_path, pdf_path):
             
             if result.returncode == 0:
                 print(f"[{datetime.now()}] PDF conversion successful: {pdf_path}")
+                
+                # Add watermark if specified
+                if watermark_text or watermark_data or use_pdf_name:
+                    add_watermark_to_pdf(pdf_path, watermark_text, watermark_data, use_pdf_name)
+                
                 return True
             else:
                 print(f"[{datetime.now()}] PowerShell error: {result.stderr}")
@@ -164,7 +292,23 @@ def scheduled_excel_download_task():
                     pdf_filename = message.replace('.xlsx', '.pdf')
                     pdf_path = os.path.join(pdfs_dir, pdf_filename)
                     
-                    if convert_excel_to_pdf(excel_path, pdf_path):
+                    # Get watermark settings
+                    watermark_settings = settings.get_watermark_settings()
+                    watermark_text = None
+                    watermark_data = None  # Only date, no additional data
+                    use_pdf_name = watermark_settings.get("use_pdf_name", True)  # Default to True
+                    
+                    print(f"[{datetime.now()}] Watermark settings: enabled={watermark_settings.get('enabled')}, use_pdf_name={use_pdf_name}, pdf_filename={pdf_filename}")
+                    
+                    if watermark_settings.get("enabled", True):
+                        # Only use PDF name - no timestamp or additional data
+                        if use_pdf_name:
+                            # Use full PDF filename (will be extracted in watermark function)
+                            pass
+                        elif watermark_settings.get("text"):
+                            watermark_text = watermark_settings["text"]
+                    
+                    if convert_excel_to_pdf(excel_path, pdf_path, watermark_text, watermark_data, use_pdf_name):
                         print(f"[{datetime.now()}] PDF created successfully: {pdf_path}")
                     else:
                         print(f"[{datetime.now()}] PDF conversion failed")
@@ -290,6 +434,7 @@ def get_excel_report(date_str):
         target_date = datetime.strptime(date_str, "%Y-%m-%d")
         
         # Find Excel files for that date
+        # Files now start with "POLA_Empty_Returns_" prefix
         date_pattern = target_date.strftime("%Y-%m-%d")
         matching_files = []
         
@@ -297,7 +442,9 @@ def get_excel_report(date_str):
         downloads_dir = "downloads"
         if os.path.exists(downloads_dir):
             for filename in os.listdir(downloads_dir):
-                if filename.startswith(date_pattern) and filename.endswith(('.xlsx', '.xls')):
+                # Check if filename contains the date pattern and ends with .xlsx/.xls
+                # Format: POLA_Empty_Returns_YYYY-MM-DD_HH-MM-SS.xlsx
+                if f"POLA_Empty_Returns_{date_pattern}" in filename and filename.endswith(('.xlsx', '.xls')):
                     matching_files.append(filename)
         
         if not matching_files:
@@ -345,6 +492,7 @@ def get_pdf_report(date_str):
         target_date = datetime.strptime(date_str, "%Y-%m-%d")
         
         # Find PDF files for that date
+        # Files now start with "POLA_Empty_Returns_" prefix
         date_pattern = target_date.strftime("%Y-%m-%d")
         matching_files = []
         
@@ -352,14 +500,16 @@ def get_pdf_report(date_str):
         pdfs_dir = os.path.join("downloads", "pdfs")
         if os.path.exists(pdfs_dir):
             for filename in os.listdir(pdfs_dir):
-                if filename.startswith(date_pattern) and filename.endswith('.pdf'):
+                # Format: POLA_Empty_Returns_YYYY-MM-DD_HH-MM-SS.pdf
+                if f"POLA_Empty_Returns_{date_pattern}" in filename and filename.endswith('.pdf'):
                     matching_files.append(filename)
         
         # Check downloads directory as fallback
         downloads_dir = "downloads"
         if os.path.exists(downloads_dir):
             for filename in os.listdir(downloads_dir):
-                if filename.startswith(date_pattern) and filename.endswith('.pdf'):
+                # Format: POLA_Empty_Returns_YYYY-MM-DD_HH-MM-SS.pdf
+                if f"POLA_Empty_Returns_{date_pattern}" in filename and filename.endswith('.pdf'):
                     matching_files.append(filename)
         
         if not matching_files:
@@ -712,6 +862,68 @@ def set_preferred_hour():
         }), 500
 
 
+@app.route('/admin/watermark', methods=['POST'])
+def set_watermark_settings():
+    """
+    Configure watermark settings
+    Body: {
+        "admin_password": "password",
+        "enabled": true/false (optional),
+        "text": "CONFIDENTIAL" (optional, null to remove),
+        "use_pdf_name": true/false (optional, use PDF filename/date as watermark),
+        "include_timestamp": true/false (optional),
+        "include_date": true/false (optional)
+    }
+    """
+    try:
+        data = request.get_json()
+        
+        if not data:
+            return jsonify({
+                "success": False,
+                "error": "Request body must be JSON"
+            }), 400
+        
+        admin_password = data.get('admin_password')
+        
+        if not admin_password:
+            return jsonify({
+                "success": False,
+                "error": "admin_password is required"
+            }), 400
+        
+        # Verify admin password
+        if not settings.verify_admin_password(admin_password):
+            return jsonify({
+                "success": False,
+                "error": "Invalid admin password"
+            }), 403
+        
+        # Update watermark settings
+        settings.set_watermark_settings(
+            enabled=data.get('enabled'),
+            text=data.get('text'),
+            use_pdf_name=data.get('use_pdf_name'),
+            include_timestamp=data.get('include_timestamp'),
+            include_date=data.get('include_date')
+        )
+        
+        # Get updated settings
+        watermark_settings = settings.get_watermark_settings()
+        
+        return jsonify({
+            "success": True,
+            "message": "Watermark settings updated",
+            "watermark": watermark_settings
+        })
+    
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
+
+
 @app.route('/excel/now', methods=['POST'])
 def download_excel_now():
     """
@@ -764,7 +976,23 @@ def download_excel_now():
                 pdf_filename = message.replace('.xlsx', '.pdf')
                 pdf_path = os.path.join(pdfs_dir, pdf_filename)
                 
-                if convert_excel_to_pdf(excel_path, pdf_path):
+                # Get watermark settings
+                watermark_settings = settings.get_watermark_settings()
+                watermark_text = None
+                watermark_data = None  # Only date, no additional data
+                use_pdf_name = watermark_settings.get("use_pdf_name", True)  # Default to True
+                
+                print(f"[{datetime.now()}] Watermark settings: enabled={watermark_settings.get('enabled')}, use_pdf_name={use_pdf_name}, pdf_filename={pdf_filename}")
+                
+                if watermark_settings.get("enabled", True):
+                    # Only use PDF name - no timestamp or additional data
+                    if use_pdf_name:
+                        # Use full PDF filename (will be extracted in watermark function)
+                        pass
+                    elif watermark_settings.get("text"):
+                        watermark_text = watermark_settings["text"]
+                
+                if convert_excel_to_pdf(excel_path, pdf_path, watermark_text, watermark_data, use_pdf_name):
                     print(f"[{datetime.now()}] PDF created successfully: {pdf_path}")
                     return jsonify({
                         "success": True,
@@ -832,11 +1060,15 @@ def status():
         )
         last_screenshot = screenshots[0] if screenshots else None
         
+        # Get watermark settings
+        watermark_settings = settings.get_watermark_settings()
+        
         return jsonify({
             "success": True,
             "frequency_hours": frequency,
             "preferred_hour": preferred_hour,
             "username": credentials['username'],
+            "watermark": watermark_settings,
             "total_screenshots": screenshot_count,
             "total_excel_files": excel_count,
             "total_pdf_files": pdf_count,
