@@ -28,6 +28,18 @@ app = Flask(__name__)
 # Initialize system settings
 settings = SystemSettings()
 
+# Base URL for publicly accessible resources
+DEFAULT_BASE_DOWNLOAD_URL = "https://empties.provar.io/portoptimizer"
+BASE_DOWNLOAD_URL = os.environ.get("PORTOPTIMIZER_BASE_URL") or DEFAULT_BASE_DOWNLOAD_URL
+BASE_DOWNLOAD_URL = BASE_DOWNLOAD_URL.rstrip("/")
+
+
+def build_download_url(filename):
+    """
+    Construct the public download URL for a given filename.
+    """
+    return f"{BASE_DOWNLOAD_URL}/download/{filename}"
+
 def add_separator_lines_to_excel(excel_path, output_path):
     """
     Add visible separator lines to Excel file and convert to PDF
@@ -458,7 +470,7 @@ def get_excel_report(date_str):
         excel_file = matching_files[0]
         
         # Return JSON with download link
-        download_url = f"{request.host_url}download/{excel_file}"
+        download_url = build_download_url(excel_file)
         
         return jsonify({
             "success": True,
@@ -523,7 +535,7 @@ def get_pdf_report(date_str):
         pdf_file = matching_files[0]
         
         # Return JSON with download link
-        download_url = f"{request.host_url}download/{pdf_file}"
+        download_url = build_download_url(pdf_file)
         
         return jsonify({
             "success": True,
@@ -618,7 +630,7 @@ def get_screenshots_range():
                 zipf.write(file_path, filename)
         
         # Return JSON with download link
-        download_url = f"{request.host_url}download/{zip_filename}"
+        download_url = build_download_url(zip_filename)
         
         return jsonify({
             "success": True,
@@ -999,7 +1011,7 @@ def download_excel_now():
                         "message": "Excel report downloaded and PDF created successfully",
                         "excel_filename": message,
                         "pdf_filename": pdf_filename,
-                        "download_url": f"{request.host_url}download/{pdf_filename}"
+                        "download_url": build_download_url(pdf_filename)
                     })
                 else:
                     print(f"[{datetime.now()}] PDF conversion failed")
@@ -1007,14 +1019,14 @@ def download_excel_now():
                         "success": True,
                         "message": "Excel report downloaded but PDF conversion failed",
                         "excel_filename": message,
-                        "download_url": f"{request.host_url}download/{message}"
+                        "download_url": build_download_url(message)
                     })
             else:
                 return jsonify({
                     "success": True,
                     "message": "Excel report downloaded successfully",
                     "filename": message,
-                    "download_url": f"{request.host_url}download/{message}"
+                    "download_url": build_download_url(message)
                 })
         else:
             return jsonify({
